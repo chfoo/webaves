@@ -54,6 +54,7 @@ impl Resolver {
     fn process_ok_query(&mut self, hostname: &str, query_result: LookupIp) -> AddressLookup {
         let addresses = query_result.iter().collect::<Vec<IpAddr>>();
         let expiry = query_result.valid_until();
+        let positive_ttl = expiry.saturating_duration_since(Instant::now());
         let records = query_result
             .as_lookup()
             .record_iter()
@@ -62,7 +63,7 @@ impl Resolver {
 
         self.insert_cache(hostname, addresses.clone(), expiry);
 
-        debug!(?addresses);
+        debug!(?addresses, ?positive_ttl);
 
         AddressLookup {
             addresses,
@@ -85,7 +86,7 @@ impl Resolver {
                 response_code: _,
                 trusted: _,
             } => {
-                self.insert_negative_cache(hostname, negative_ttl.unwrap_or(60));
+                self.insert_negative_cache(hostname, negative_ttl.unwrap_or(5));
                 ResolverError::NotFound
             }
             _ => ResolverError::Other(error),
@@ -97,8 +98,6 @@ impl Resolver {
     }
 
     fn insert_cache(&mut self, hostname: &str, addresses: Vec<IpAddr>, expiry: Instant) {
-        let expiry = expiry.min(Instant::now() + Duration::from_secs(3600));
-
         self.cache.insert(
             hostname.to_string(),
             CacheEntry {
@@ -110,7 +109,7 @@ impl Resolver {
     }
 
     fn insert_negative_cache(&mut self, hostname: &str, ttl: u32) {
-        let expiry = Instant::now() + Duration::from_secs(ttl.min(3600).into());
+        let expiry = Instant::now() + Duration::from_secs(ttl.into());
 
         self.cache.insert(
             hostname.to_string(),
@@ -145,6 +144,9 @@ impl Builder {
         }
     }
 
+    // TODO: add config to bind to a network interface address when it is implemented
+    // in trust_dns_resolver
+
     pub fn with_doh_server(mut self, address: IpAddr, port: u16, hostname: &str) -> Self {
         self.config.add_name_server(NameServerConfig {
             socket_addr: SocketAddr::new(address, port),
@@ -161,6 +163,10 @@ impl Builder {
             timeout: Duration::from_secs(10),
             edns0: true,
             ip_strategy: LookupIpStrategy::Ipv4AndIpv6,
+            positive_min_ttl: Some(Duration::from_secs(5)),
+            negative_min_ttl: Some(Duration::from_secs(5)),
+            positive_max_ttl: Some(Duration::from_secs(900)),
+            negative_max_ttl: Some(Duration::from_secs(900)),
             use_hosts_file: false,
             preserve_intermediates: true,
             ..Default::default()
