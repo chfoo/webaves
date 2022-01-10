@@ -5,6 +5,12 @@ edition = '2021'
 publish = false
 
 [dependencies]
+async-trait = "0.1"
+bytes = "1.1"
+headers = "0.3"
+http = "0.2"
+httparse = "1.5"
+hyper = { version = "0.14", features = ["full"] }
 rand = "0.8"
 thiserror = "1.0"
 tokio = { version = "1.15", features = ["full"] }

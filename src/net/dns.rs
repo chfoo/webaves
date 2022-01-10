@@ -187,7 +187,7 @@ impl Default for Builder {
 #[allow(clippy::large_enum_variant)]
 #[derive(Error, Debug)]
 pub enum ResolverError {
-    #[error("Not found")]
+    #[error("not found")]
     NotFound,
 
     #[error(transparent)]
