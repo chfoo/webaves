@@ -1,0 +1,8 @@
+## Webaves project configuration file (TOML formatted document).
+
+[dns]
+doh_servers = [
+    { address = "1.1.1.1", port = 443, hostname = "cloudflare-dns.com" },
+    { address = "8.8.8.8", port = 443, hostname = "dns.google" },
+]
+
