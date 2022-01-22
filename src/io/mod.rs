@@ -1,3 +1,5 @@
+pub mod capture;
+
 use async_trait::async_trait;
 use bytes::{Buf, BufMut};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};

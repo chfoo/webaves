@@ -1,7 +1,8 @@
 mod app;
+mod dns;
 mod error;
+mod http;
 mod io;
-mod net;
 mod uuid;
 
 use std::path::Path;

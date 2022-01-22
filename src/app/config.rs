@@ -2,7 +2,7 @@ use std::net::IpAddr;
 
 use serde::Deserialize;
 
-use crate::net::dns;
+use crate::dns;
 
 #[derive(Deserialize)]
 pub struct RunConfig {
