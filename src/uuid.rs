@@ -2,27 +2,23 @@
 
 /// Generate a UUID version 7.
 ///
-/// Implementation is based on [draft version 2](https://github.com/uuid6/uuid6-ietf-draft).
+/// Implementation is based on [draft version 4](https://github.com/uuid6/uuid6-ietf-draft).
 pub fn new_v7() -> uuid::Uuid {
     let time_now = std::time::SystemTime::now();
     let unix_duration = time_now.duration_since(std::time::UNIX_EPOCH).unwrap();
 
-    let timestamp = unix_duration.as_secs();
-    let nanoseconds =
-        (unix_duration.subsec_nanos() as f32 / 1_000_000_000.0 * 0xff_ffff as f32) as u32;
-    let random_value = rand::random::<[u8; 8]>();
+    let timestamp = unix_duration.as_millis();
+    let random_value = rand::random::<[u8; 10]>();
 
     let mut bytes = [0u8; 16];
-    bytes[0] = (timestamp >> 28) as u8;
-    bytes[1] = (timestamp >> 20) as u8;
-    bytes[2] = (timestamp >> 12) as u8;
-    bytes[3] = (timestamp >> 4) as u8;
-    bytes[4] = (((timestamp & 0x0f) as u8) << 4) | ((nanoseconds >> 20) & 0x0f) as u8;
-    bytes[5] = (nanoseconds >> 12) as u8;
-    bytes[6] = (7 << 4) | ((nanoseconds >> 8) & 0x0f) as u8; // 4 bit version
-    bytes[7] = nanoseconds as u8;
-
-    bytes[8..16].copy_from_slice(&random_value);
+    bytes[0] = (timestamp >> 40) as u8;
+    bytes[1] = (timestamp >> 32) as u8;
+    bytes[2] = (timestamp >> 24) as u8;
+    bytes[3] = (timestamp >> 16) as u8;
+    bytes[4] = (timestamp >> 8) as u8;
+    bytes[5] = timestamp as u8;
+    bytes[6..16].copy_from_slice(&random_value);
+    bytes[6] = (7 << 4) | (bytes[8] & 0x0f) as u8; // 4 bit version
     bytes[8] = (0b10 << 6) | (bytes[8] & 0b11_1111); // variant
 
     uuid::Uuid::from_bytes(bytes)
