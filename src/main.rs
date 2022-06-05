@@ -3,6 +3,7 @@ mod dns;
 mod error;
 mod http;
 mod io;
+mod project;
 mod uuid;
 
 use std::path::Path;

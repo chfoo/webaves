@@ -1,8 +1,30 @@
 ## Webaves project configuration file (TOML formatted document).
 
+## General project settings
+[project]
+
+## Path of the directory where data will be stored.
+workspace_path = './my_workspace/'
+
+[network]
+bind_address = "192.168.1.100"
+
 [dns]
 doh_servers = [
     { address = "1.1.1.1", port = 443, hostname = "cloudflare-dns.com" },
     { address = "8.8.8.8", port = 443, hostname = "dns.google" },
 ]
 
+[work_unit]
+uris = ["http://example.com/", "http://example.net/"]
+uri_file = './links.txt'
+stop_on_idle = true
+
+[mitm_server]
+enabled = false
+bind_address = "localhost"
+bind_port = 0
+
+[webdriver]
+executable = "chromedriver"
+browser = "chrome"

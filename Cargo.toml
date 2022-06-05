@@ -20,7 +20,8 @@ tokio = { version = "1.15", features = ["full"] }
 toml = "0.5"
 tracing = "0.1"
 trust-dns-resolver = { version = "0.20", features = ["dns-over-https-rustls"] }
-uuid = "0.8"
+url = "2.2"
+uuid = { version = "0.8", features = ["serde"] }
 
 [dev-dependencies]
 env_logger = "0.9"
