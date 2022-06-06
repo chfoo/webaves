@@ -154,23 +154,23 @@ impl Builder {
             tls_dns_name: Some(hostname.to_string()),
             trust_nx_responses: false,
             tls_config: None,
+            bind_addr: None,
         });
         self
     }
 
     pub fn build(&self) -> Resolver {
-        let options = ResolverOpts {
-            timeout: Duration::from_secs(10),
-            edns0: true,
-            ip_strategy: LookupIpStrategy::Ipv4AndIpv6,
-            positive_min_ttl: Some(Duration::from_secs(5)),
-            negative_min_ttl: Some(Duration::from_secs(5)),
-            positive_max_ttl: Some(Duration::from_secs(900)),
-            negative_max_ttl: Some(Duration::from_secs(900)),
-            use_hosts_file: false,
-            preserve_intermediates: true,
-            ..Default::default()
-        };
+        let mut options = ResolverOpts::default();
+
+        options.timeout = Duration::from_secs(10);
+        options.edns0 = true;
+        options.ip_strategy = LookupIpStrategy::Ipv4AndIpv6;
+        options.positive_min_ttl = Some(Duration::from_secs(5));
+        options.negative_min_ttl = Some(Duration::from_secs(5));
+        options.positive_max_ttl = Some(Duration::from_secs(900));
+        options.negative_max_ttl = Some(Duration::from_secs(900));
+        options.use_hosts_file = false;
+        options.preserve_intermediates = true;
 
         Resolver::new(
             trust_dns_resolver::TokioAsyncResolver::tokio(self.config.clone(), options).unwrap(),

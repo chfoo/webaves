@@ -35,11 +35,11 @@ mod tests {
 
         assert!(!uuid1.is_nil());
         assert_eq!(uuid1.get_version_num(), 7);
-        assert_eq!(uuid1.get_variant(), Some(uuid::Variant::RFC4122));
+        assert_eq!(uuid1.get_variant(), uuid::Variant::RFC4122);
 
         assert!(!uuid2.is_nil());
         assert_eq!(uuid2.get_version_num(), 7);
-        assert_eq!(uuid2.get_variant(), Some(uuid::Variant::RFC4122));
+        assert_eq!(uuid2.get_variant(), uuid::Variant::RFC4122);
 
         assert_ne!(uuid1, uuid2);
 
