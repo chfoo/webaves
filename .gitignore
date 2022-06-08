@@ -1,2 +1,6 @@
 ## Rust output
 /target/
+/crates/*/target/
+
+## Sphinx output
+/docs/_build/
