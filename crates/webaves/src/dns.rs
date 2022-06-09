@@ -14,7 +14,7 @@ use trust_dns_resolver::{
     config::{LookupIpStrategy, NameServerConfig, Protocol, ResolverConfig, ResolverOpts},
     error::{ResolveError, ResolveErrorKind},
     lookup_ip::LookupIp,
-    proto::{rr::RecordType, xfer::DnsRequestOptions},
+    proto::{op::ResponseCode, rr::RecordType, xfer::DnsRequestOptions},
     TokioAsyncResolver,
 };
 
@@ -65,19 +65,18 @@ impl Resolver {
     }
 
     fn process_address_err(&self, error: ResolveError) -> Result<AddressResponse, ResolverError> {
-        match error.kind() {
-            ResolveErrorKind::NoRecordsFound {
-                query: _,
-                soa: _,
-                negative_ttl: _,
-                response_code: _,
-                trusted: _,
-            } => {
-                debug!("not found");
-                Err(ResolverError::NotFound)
-            }
-            _ => Err(ResolverError::Other(error)),
+        if let ResolveErrorKind::NoRecordsFound {
+            query: _,
+            soa: _,
+            negative_ttl: _,
+            response_code,
+            trusted: _,
+        } = error.kind()
+        {
+            debug!(response_code = response_code.to_str());
         }
+
+        Err(error.into())
     }
 
     /// Resolve the given hostname to DNS resource records.
@@ -217,14 +216,54 @@ impl AddressResponse {
 /// DNS Resolver errors.
 #[derive(Error, Debug)]
 pub enum ResolverError {
-    #[error("not found")]
-    NotFound,
+    /// Non-existent domain.
+    #[error("non-existent domain")]
+    NoName,
 
+    /// No records for given record type.
+    #[error("no records for given record type")]
+    NoRecord,
+
+    /// Other negative response.
+    #[error("negative response: {0}")]
+    Other(&'static str),
+
+    /// Standard IO error.
     #[error(transparent)]
     Io(#[from] std::io::Error),
 
+    /// Third-party crate implementation error.
     #[error(transparent)]
-    Other(#[from] ResolveError),
+    OtherInternal(ResolveError),
+}
+
+impl From<ResolveError> for ResolverError {
+    fn from(error: ResolveError) -> Self {
+        match error.kind() {
+            ResolveErrorKind::NoRecordsFound {
+                query: _,
+                soa: _,
+                negative_ttl: _,
+                response_code: ResponseCode::NXDomain,
+                trusted: _,
+            } => Self::NoName,
+            ResolveErrorKind::NoRecordsFound {
+                query: _,
+                soa: _,
+                negative_ttl: _,
+                response_code: ResponseCode::NoError,
+                trusted: _,
+            } => Self::NoRecord,
+            ResolveErrorKind::NoRecordsFound {
+                query: _,
+                soa: _,
+                negative_ttl: _,
+                response_code,
+                trusted: _,
+            } => Self::Other(response_code.to_str()),
+            _ => Self::OtherInternal(error),
+        }
+    }
 }
 
 /// Generate a domain name that is unlikely to exist.
@@ -269,7 +308,7 @@ mod tests {
 
         assert!(matches!(
             resolver.lookup_address(&random_domain()).await,
-            Err(ResolverError::NotFound)
+            Err(ResolverError::NoName)
         ));
     }
 }
