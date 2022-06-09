@@ -3,3 +3,14 @@ name = "webaves-app"
 version = "0.0.0"
 edition = '2021'
 publish = false
+
+[dependencies]
+anyhow = { version = "1.0", features = ["backtrace"] }
+clap = { version = "3.1", features = ["color", "suggestions", "cargo", "unicode", "wrap_help"] }
+serde_json = "1.0"
+tokio = { version = "1.19", features = ["full"] }
+webaves = { version = "0.0", path = "../webaves/" }
+
+[[bin]]
+name = "webaves-dns-lookup"
+path = "src/bin/dns_lookup.rs"

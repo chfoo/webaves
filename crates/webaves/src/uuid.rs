@@ -1,4 +1,4 @@
-/// UUID helpers.
+//! UUID helpers.
 
 /// Generate a UUID version 7.
 ///
