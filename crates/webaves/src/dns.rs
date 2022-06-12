@@ -9,7 +9,6 @@ use std::{
 use rand::Rng;
 use serde::Serialize;
 use thiserror::Error;
-use tracing::debug;
 use trust_dns_resolver::{
     config::{LookupIpStrategy, NameServerConfig, Protocol, ResolverConfig, ResolverOpts},
     error::{ResolveError, ResolveErrorKind},
@@ -59,7 +58,7 @@ impl Resolver {
             address_response.text_records.push(format!("{}", record));
         }
 
-        debug!(count = address_response.addresses.len(), "ok");
+        tracing::debug!(count = address_response.addresses.len(), "ok");
 
         Ok(address_response)
     }
@@ -73,7 +72,7 @@ impl Resolver {
             trusted: _,
         } = error.kind()
         {
-            debug!(response_code = response_code.to_str());
+            tracing::debug!(response_code = response_code.to_str(), "err");
         }
 
         Err(error.into())

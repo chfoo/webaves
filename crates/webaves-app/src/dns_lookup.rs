@@ -1,7 +1,6 @@
 use clap::{Arg, ArgMatches, Command};
 use webaves::dns::{Resolver, ResolverBuilder};
 
-#[tokio::main]
 pub async fn main() -> anyhow::Result<()> {
     let address_command = Command::new("address")
         .about("Lookup IP addresses for a hostname.")
@@ -24,9 +23,10 @@ pub async fn main() -> anyhow::Result<()> {
                 .help("Target hostname to query."),
         );
 
-    let matches = Command::new(clap::crate_name!())
+    let command = Command::new(clap::crate_name!())
         .version(clap::crate_version!())
         .about("Lookup DNS records")
+        .subcommand_required(true)
         .arg(
             Arg::new("bind-address")
                 .long("bind-address")
@@ -43,8 +43,12 @@ pub async fn main() -> anyhow::Result<()> {
                 .help("Address and hostname of DNS-over-HTTPS server. (Example: 10.0.0.0:443/dns.example.com)"),
         )
         .subcommand(address_command)
-        .subcommand(record_command)
-        .get_matches();
+        .subcommand(record_command);
+
+    let command = crate::logging::logging_args(command);
+    let matches = command.get_matches();
+
+    crate::logging::set_up_logging(&matches);
 
     match matches.subcommand() {
         Some(("address", sub_matches)) => handle_address_command(&matches, sub_matches).await,
