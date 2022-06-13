@@ -2,7 +2,6 @@
 
 use std::{
     net::SocketAddr,
-    os::unix::prelude::OsStrExt,
     path::{Path, PathBuf},
 };
 
@@ -70,16 +69,18 @@ impl Connect<UnixStream> for LocalConnector {
 #[async_trait::async_trait]
 impl Connect<NamedPipeClient> for LocalConnector {
     async fn connect(&self) -> Result<NamedPipeClient, Error> {
+        use winapi::shared::winerror;
+
         let path = get_windows_named_pipe_path(&self.session_id, &self.service_id);
 
         loop {
-            match ClientOptions::new().open(path) {
+            match ClientOptions::new().open(&path) {
                 Ok(client) => return Ok(client),
                 Err(e) if e.raw_os_error() == Some(winerror::ERROR_PIPE_BUSY as i32) => (),
-                Err(e) => return Err(e),
+                Err(e) => return Err(e.into()),
             }
 
-            tokio::time::sleep(Duration::from_millis(50)).await;
+            tokio::time::sleep(std::time::Duration::from_millis(50)).await;
         }
     }
 }
@@ -201,7 +202,7 @@ impl Listen<NamedPipeServer> for LocalListener {
 
     async fn accept(&mut self) -> Result<(NamedPipeServer, Option<SocketAddr>), Error> {
         let path = get_windows_named_pipe_path(&self.session_id, &self.service_id);
-        let mut server = self.server.take().unwrap();
+        let server = self.server.take().unwrap();
 
         // Accept a client and immediately start a new server to minimize downtime.
         server.connect().await?;
@@ -226,12 +227,32 @@ fn default_session_id() -> String {
     }
 }
 
+#[cfg(unix)]
 fn path_to_session_id(path: &Path) -> String {
+    use std::os::unix::ffi::OsStrExt;
+
     let hash = mx3::hash(path.as_os_str().as_bytes(), 1);
 
     format!("{:016x}", hash)
 }
 
+#[cfg(windows)]
+fn path_to_session_id(path: &Path) -> String {
+    use std::os::windows::ffi::OsStrExt;
+
+    let mut bytes = Vec::with_capacity(path.as_os_str().len() * 2);
+
+    for unit in path.as_os_str().encode_wide() {
+        bytes.push((unit >> 8) as u8);
+        bytes.push(unit as u8);
+    }
+
+    let hash = mx3::hash(&bytes, 1);
+
+    format!("{:016x}", hash)
+}
+
+#[allow(dead_code)]
 fn get_runtime_dir() -> PathBuf {
     let mut runtime_dir = dirs::runtime_dir();
 
@@ -273,6 +294,7 @@ fn get_windows_named_pipe_path(session_id: &str, service_id: &str) -> PathBuf {
     path
 }
 
+#[allow(dead_code)]
 fn is_fatal_accept(error: &std::io::Error) -> bool {
     !matches!(
         error.kind(),
