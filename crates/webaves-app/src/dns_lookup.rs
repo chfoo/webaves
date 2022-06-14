@@ -1,7 +1,11 @@
-use clap::{Arg, ArgMatches, Command};
+use std::net::SocketAddr;
+
+use clap::{Arg, ArgAction, ArgMatches, Command};
 use webaves::dns::{Resolver, ResolverBuilder};
 
-pub async fn main() -> anyhow::Result<()> {
+use crate::argutil::DoHAddress;
+
+pub fn create_command() -> Command<'static> {
     let address_command = Command::new("address")
         .about("Lookup IP addresses for a hostname.")
         .arg(
@@ -23,36 +27,32 @@ pub async fn main() -> anyhow::Result<()> {
                 .help("Target hostname to query."),
         );
 
-    let command = Command::new(clap::crate_name!())
-        .version(clap::crate_version!())
+    Command::new("dns-lookup")
         .about("Lookup DNS records")
         .subcommand_required(true)
         .arg(
             Arg::new("bind-address")
                 .long("bind-address")
-                .short('b')
                 .takes_value(true)
+                .value_parser(clap::value_parser!(SocketAddr))
                 .help("Address of outgoing network interface. (Example: 192.168.1.100:0)"),
         )
         .arg(
             Arg::new("doh-server")
-            .long("doh-server")
-            .short('h')
-                .multiple_occurrences(true)
-                    .takes_value(true)
+                .long("doh-server")
+                .action(ArgAction::Append)
+                .takes_value(true)
+                .value_parser(clap::value_parser!(DoHAddress))
                 .help("Address and hostname of DNS-over-HTTPS server. (Example: 10.0.0.0:443/dns.example.com)"),
         )
         .subcommand(address_command)
-        .subcommand(record_command);
+        .subcommand(record_command)
+}
 
-    let command = crate::logging::logging_args(command);
-    let matches = command.get_matches();
-
-    crate::logging::set_up_logging(&matches);
-
-    match matches.subcommand() {
-        Some(("address", sub_matches)) => handle_address_command(&matches, sub_matches).await,
-        Some(("record", sub_matches)) => handle_record_command(&matches, sub_matches).await,
+pub async fn run(arg_matches: &ArgMatches) -> anyhow::Result<()> {
+    match arg_matches.subcommand() {
+        Some(("address", sub_matches)) => handle_address_command(arg_matches, sub_matches).await,
+        Some(("record", sub_matches)) => handle_record_command(arg_matches, sub_matches).await,
         _ => unreachable!(),
     }
 }
@@ -61,15 +61,10 @@ fn config_resolver(
     mut builder: ResolverBuilder,
     matches: &ArgMatches,
 ) -> anyhow::Result<ResolverBuilder> {
-    match matches.values_of("doh-server") {
+    match matches.get_many::<DoHAddress>("doh-server") {
         Some(values) => {
             for value in values {
-                match value.split_once('/') {
-                    Some((address, hostname)) => {
-                        builder = builder.with_doh_server(address.parse()?, hostname);
-                    }
-                    None => anyhow::bail!("bad DOH address format"),
-                }
+                builder = builder.with_doh_server(value.0, &value.1);
             }
         }
         None => {
@@ -79,9 +74,9 @@ fn config_resolver(
         }
     }
 
-    match matches.value_of("bind-address") {
+    match matches.get_one::<SocketAddr>("bind-address") {
         Some(value) => {
-            builder = builder.with_bind_address(value.parse()?);
+            builder = builder.with_bind_address(*value);
         }
         None => {}
     }
@@ -96,7 +91,7 @@ async fn handle_address_command(
     let builder = config_resolver(Resolver::builder(), matches)?;
     let resolver = builder.build();
     let response = resolver
-        .lookup_address(sub_matches.value_of("hostname").unwrap())
+        .lookup_address(sub_matches.get_one::<String>("hostname").unwrap())
         .await?;
 
     println!("{}", serde_json::to_string_pretty(&response)?);
@@ -112,8 +107,8 @@ async fn handle_record_command(
     let resolver = builder.build();
     let response = resolver
         .lookup_record(
-            sub_matches.value_of("type").unwrap(),
-            sub_matches.value_of("hostname").unwrap(),
+            sub_matches.get_one::<String>("type").unwrap(),
+            sub_matches.get_one::<String>("hostname").unwrap(),
         )
         .await?;
 

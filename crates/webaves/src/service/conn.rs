@@ -34,6 +34,9 @@ where
 /// Configures and creates a stream to a local service.
 ///
 /// The underlying connection is either a Unix domain socket or a Windows named pipe.
+/// To prevent collisions with other instances or users, the path of the socket
+/// or pipe is automatically derived using the current username and working
+/// directory.
 pub struct LocalConnector {
     session_id: String,
     service_id: String,
@@ -112,6 +115,9 @@ where
 /// Configures and creates a stream for a local service.
 ///
 /// The underlying connection is either a Unix domain socket or a Windows named pipe.
+/// To prevent collisions with other instances or users, the path of the socket
+/// or pipe is automatically derived using the current username and working
+/// directory.
 pub struct LocalListener {
     session_id: String,
     service_id: String,

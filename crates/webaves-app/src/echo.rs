@@ -1,4 +1,7 @@
-use clap::Command;
+use std::time::Duration;
+
+use clap::{ArgMatches, Command};
+use indicatif::ProgressBar;
 use tracing::Instrument;
 use webaves::service::{
     conn::{Connect, LocalConnector, LocalListener},
@@ -6,15 +9,11 @@ use webaves::service::{
     rpc::ServerRunner,
 };
 
-pub async fn main_server() -> anyhow::Result<()> {
-    let command = Command::new(clap::crate_name!())
-        .version(clap::crate_version!())
-        .about("Echo service.");
-    let command = crate::logging::logging_args(command);
-    let arg_matches = command.get_matches();
+pub fn create_server_command() -> Command<'static> {
+    Command::new("echo-service").about("Echo service.")
+}
 
-    crate::logging::set_up_logging(&arg_matches);
-
+pub async fn run_server(_arg_matches: &ArgMatches) -> anyhow::Result<()> {
     let listener = LocalListener::new().with_service_id(SERVICE_NAME);
     let mut runner = ServerRunner::new(EchoRPCServer.serve(), listener);
 
@@ -30,15 +29,11 @@ pub async fn main_server() -> anyhow::Result<()> {
     Ok(())
 }
 
-pub async fn main_client() -> anyhow::Result<()> {
-    let command = Command::new(clap::crate_name!())
-        .version(clap::crate_version!())
-        .about("Echo service client.");
-    let command = crate::logging::logging_args(command);
-    let arg_matches = command.get_matches();
+pub fn create_client_command() -> Command<'static> {
+    Command::new("echo").about("Echo service client.")
+}
 
-    crate::logging::set_up_logging(&arg_matches);
-
+pub async fn run_client(_arg_matches: &ArgMatches) -> anyhow::Result<()> {
     let stream = LocalConnector::new()
         .with_service_id(SERVICE_NAME)
         .connect()
@@ -46,13 +41,23 @@ pub async fn main_client() -> anyhow::Result<()> {
     let transport = webaves::service::rpc::create_transport(stream);
     let client = EchoRPCClient::new(Default::default(), transport).spawn();
 
+    let progress_bar = ProgressBar::new(10);
+
+    crate::logging::set_progress_bar(Some(progress_bar.clone()));
+
     for _ in 0..10 {
         let response = client
             .echo(tarpc::context::current(), "Hello world!".to_string())
             .await?;
 
-        println!("{}", response);
+        progress_bar.inc(1);
+        progress_bar.suspend(|| {
+            println!("{}", response);
+        });
+        tokio::time::sleep(Duration::from_millis(100)).await;
     }
+
+    progress_bar.finish_and_clear();
 
     Ok(())
 }
