@@ -1,4 +1,4 @@
-//! DNS facilities.
+//! Domain name system resolution.
 
 use std::{
     net::{IpAddr, SocketAddr},

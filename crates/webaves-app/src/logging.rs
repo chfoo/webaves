@@ -1,6 +1,6 @@
 use std::{
     fs::File,
-    io::Write,
+    io::{Write, BufWriter},
     path::{Path, PathBuf},
     sync::{Mutex, RwLock},
 };
@@ -14,7 +14,7 @@ lazy_static::lazy_static! {
 }
 
 pub struct LogLineWriter {
-    file: Option<File>,
+    file: Option<BufWriter<File>>,
 }
 
 impl LogLineWriter {
@@ -28,7 +28,7 @@ impl LogLineWriter {
             .append(true)
             .open(path)?;
 
-        Ok(Self { file: Some(file) })
+        Ok(Self { file: Some(BufWriter::new(file)) })
     }
 }
 
