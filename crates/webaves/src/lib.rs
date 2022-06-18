@@ -9,3 +9,4 @@ pub mod service;
 mod stream;
 pub mod string;
 pub mod uuid;
+pub mod warc;

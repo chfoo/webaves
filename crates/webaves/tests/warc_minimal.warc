@@ -1,0 +1,16 @@
+WARC/1.1
+WARC-Type: resource
+WARC-Date: 2000-12-30T01:02:03Z
+WARC-Record-ID: <urn:uuid:00000001-0002-0003-0004-000000000005>
+Content-Length: 10
+
+נסעףפץצקרש
+
+WARC/1.1
+WARC-Type: resource
+WARC-Date: 2001-12-30T01:02:03Z
+WARC-Record-ID: <urn:uuid:10000001-0002-0003-0004-000000000005>
+Content-Length: 16
+
+נסעףפץצקרשתûü‎‏ÿ
+

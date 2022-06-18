@@ -1,11 +1,11 @@
 use std::{
     fs::File,
-    io::{Write, BufWriter},
+    io::{BufWriter, Write},
     path::{Path, PathBuf},
     sync::{Mutex, RwLock},
 };
 
-use clap::{Arg, ArgMatches, Command};
+use clap::{Arg, ArgAction, ArgMatches, Command};
 use indicatif::ProgressBar;
 use tracing_subscriber::{prelude::*, EnvFilter};
 
@@ -28,7 +28,9 @@ impl LogLineWriter {
             .append(true)
             .open(path)?;
 
-        Ok(Self { file: Some(BufWriter::new(file)) })
+        Ok(Self {
+            file: Some(BufWriter::new(file)),
+        })
     }
 }
 
@@ -65,8 +67,8 @@ pub fn logging_args(command: Command) -> Command {
         .arg(
             Arg::new("verbose")
                 .long("verbose")
-                .conflicts_with("log_level")
-                .help("Print informative and progress messages. Set log level to 'info'."),
+                .action(ArgAction::SetTrue)
+                .help("Print informative and progress messages."),
         )
         .arg(
             Arg::new("log_filter")
@@ -156,6 +158,20 @@ pub fn set_progress_bar(value: Option<ProgressBar>) {
         None => {
             guard.take();
         }
+    }
+}
+
+pub fn is_verbose(arg_matches: &ArgMatches) -> bool {
+    arg_matches.get_one::<bool>("verbose").cloned().unwrap()
+}
+
+pub fn create_and_config_progress_bar(arg_matches: &ArgMatches) -> ProgressBar {
+    if is_verbose(arg_matches) {
+        let progress_bar = ProgressBar::new(0);
+        set_progress_bar(Some(progress_bar.clone()));
+        progress_bar
+    } else {
+        ProgressBar::hidden()
     }
 }
 

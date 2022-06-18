@@ -19,7 +19,7 @@ use thiserror::Error;
 
 use crate::string::StringLosslessExt;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HeaderMap {
     pairs: Vec<FieldPair>,
 }
@@ -45,6 +45,10 @@ impl HeaderMap {
         }
     }
 
+    pub fn contains_key<N: Into<String>>(&self, name: N) -> bool {
+        self.get(name).is_some()
+    }
+
     /// Returns the first field value for the given name.
     pub fn get<N: Into<String>>(&self, name: N) -> Option<&FieldValue> {
         let mut name = name.into();
@@ -68,6 +72,13 @@ impl HeaderMap {
             name,
             map: self,
             index: 0,
+        }
+    }
+
+    pub fn get_str<N: Into<String>>(&self, name: N) -> Option<&str> {
+        match self.get(name) {
+            Some(field) => Some(field.text.as_ref()),
+            None => None,
         }
     }
 
@@ -609,7 +620,7 @@ impl Default for HeaderFormatter {
 }
 
 /// Error during parsing indicating malformed or invalid character sequences.
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub struct ParseError {
     offset: u64,
     message: String,
@@ -621,12 +632,6 @@ impl ParseError {
     pub fn offset(&self) -> u64 {
         self.offset
     }
-}
-
-impl std::error::Error for ParseError {
-    // fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-    //     self.source.as_ref().map(|item| item.as_ref())
-    // }
 }
 
 impl Display for ParseError {
@@ -709,6 +714,23 @@ fn get_parse_error_kind_message(errors: &[(&[u8], nom::error::VerboseErrorKind)]
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_header_get_convenience() {
+        let mut map = HeaderMap::new();
+
+        map.insert("k1", "v1");
+        map.insert("k2", "v2");
+
+        assert_eq!(map.len(), 2);
+        assert!(!map.is_empty());
+        assert!(map.contains_key("k1"));
+        assert!(map.contains_key("k2"));
+        assert!(!map.contains_key("k3"));
+        assert_eq!(map.get_str("k1"), Some("v1"));
+        assert_eq!(map.get_str("k2"), Some("v2"));
+        assert_eq!(map.get_str("k3"), None);
+    }
 
     #[test]
     fn test_header_map_uniques() {
@@ -942,6 +964,5 @@ mod tests {
         formatter.disable_validation(true);
         formatter.format_header(&map, &mut buf).unwrap();
         assert_eq!(buf, b"k1: v1\n\r\n");
-
     }
 }

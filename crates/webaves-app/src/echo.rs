@@ -1,7 +1,6 @@
 use std::time::Duration;
 
 use clap::{ArgMatches, Command};
-use indicatif::ProgressBar;
 use tracing::Instrument;
 use webaves::service::{
     conn::{Connect, LocalConnector, LocalListener},
@@ -10,7 +9,9 @@ use webaves::service::{
 };
 
 pub fn create_server_command() -> Command<'static> {
-    Command::new("echo-service").about("Echo service.")
+    Command::new("echo-service")
+        .about("Echo service.")
+        .hide(true)
 }
 
 pub async fn run_server(_arg_matches: &ArgMatches) -> anyhow::Result<()> {
@@ -30,10 +31,15 @@ pub async fn run_server(_arg_matches: &ArgMatches) -> anyhow::Result<()> {
 }
 
 pub fn create_client_command() -> Command<'static> {
-    Command::new("echo").about("Echo service client.")
+    Command::new("echo")
+        .about("Echo service client.")
+        .hide(true)
 }
 
-pub async fn run_client(_arg_matches: &ArgMatches) -> anyhow::Result<()> {
+pub async fn run_client(
+    global_matches: &ArgMatches,
+    _arg_matches: &ArgMatches,
+) -> anyhow::Result<()> {
     let stream = LocalConnector::new()
         .with_service_id(SERVICE_NAME)
         .connect()
@@ -41,9 +47,8 @@ pub async fn run_client(_arg_matches: &ArgMatches) -> anyhow::Result<()> {
     let transport = webaves::service::rpc::create_transport(stream);
     let client = EchoRPCClient::new(Default::default(), transport).spawn();
 
-    let progress_bar = ProgressBar::new(10);
-
-    crate::logging::set_progress_bar(Some(progress_bar.clone()));
+    let progress_bar = crate::logging::create_and_config_progress_bar(global_matches);
+    progress_bar.set_length(10);
 
     for _ in 0..10 {
         let response = client

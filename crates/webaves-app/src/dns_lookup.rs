@@ -28,7 +28,7 @@ pub fn create_command() -> Command<'static> {
         );
 
     Command::new("dns-lookup")
-        .about("Lookup DNS records")
+        .about("Lookup DNS records.")
         .subcommand_required(true)
         .arg(
             Arg::new("bind-address")

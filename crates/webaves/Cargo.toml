@@ -6,6 +6,7 @@ publish = false
 
 [dependencies]
 async-trait = "0.1"
+chrono = "0.4"
 dirs = "4.0"
 flate2 = "1.0"
 fslock = "0.2"
