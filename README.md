@@ -2,7 +2,7 @@
 
 Web archiving software suite.
 
-Work in progress.
+**Work in progress.** The code, functionality, and documentation is incomplete.
 
 The following is planned:
 
@@ -14,23 +14,27 @@ The following is planned:
 
 ## Installation
 
-TODO
+Downloads can be found on the [Releases section](https://github.com/chfoo/webaves/releases).
 
-The application can be built and installed using cargo from the [`webaves-app` crate](crates/webaves-app/README.md).
+If you want to compile the application yourself, you can do so using cargo from the [`webaves-app` crate](crates/webaves-app/README.md).
 
 ## Usage
 
-TODO
+For information on how to use the application, see the [user guide](https://webaves.readthedocs.io/). If you need help, please check the [Discussions](https://github.com/chfoo/webaves/discussions) section.
 
-If you need help, please see the Discussions section.
+ [![Documentation Status](https://readthedocs.org/projects/webaves/badge/?version=latest)](https://webaves.readthedocs.io/en/latest/?badge=latest)
 
 ## Developers
 
 The components of Webaves can be reused in your own Rust projects from the [`webaves` crate](crates/webaves/README.md).
 
+![Crates.io](https://img.shields.io/crates/v/webaves) ![docs.rs](https://img.shields.io/docsrs/webaves)
+
 ## Contributing
 
-See [Contributing.md](CONTRIBUTING.md) for information about bug reports and contributing to the project.
+See [Contributing](CONTRIBUTING.md) for information about bug reports and contributing to the project.
+
+[List of sponsors](sponsors.md)
 
 ## License
 

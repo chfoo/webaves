@@ -4,6 +4,11 @@
 :maxdepth: 2
 :caption: Contents
 
+Installation <install>
+Running <running>
+warc
+Application changelog <changelog_app>
+API changelog <changelog_lib>
 ```
 
 ## Indices and tables

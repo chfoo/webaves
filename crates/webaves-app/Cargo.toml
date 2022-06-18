@@ -2,6 +2,11 @@
 name = "webaves-app"
 version = "0.0.0"
 edition = '2021'
+description = "CLI application for web archiving software suite"
+license = "MPL-2.0"
+repository = "https://github.com/chfoo/webaves"
+categories = ["command-line-utilities"]
+keywords = ["cli", "web"]
 publish = false
 
 [dependencies]
