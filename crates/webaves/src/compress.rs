@@ -1,6 +1,6 @@
 //! Compression and decompression streams.
 
-use std::io::{BufReader, ErrorKind, Read};
+use std::io::{ErrorKind, Read};
 
 use flate2::bufread::MultiGzDecoder;
 use zstd::stream::read::Decoder as ZstdDecoder;
@@ -9,9 +9,9 @@ use crate::stream::{CountBufReader, CountRead, PeekReader};
 
 #[allow(clippy::large_enum_variant)]
 enum Decoder<'a, S: Read> {
-    Raw(CountBufReader<BufReader<PeekReader<S>>>),
-    Gzip(MultiGzDecoder<CountBufReader<BufReader<PeekReader<S>>>>),
-    Zstd(ZstdDecoder<'a, CountBufReader<BufReader<PeekReader<S>>>>),
+    Raw(CountBufReader<PeekReader<S>>),
+    Gzip(MultiGzDecoder<CountBufReader<PeekReader<S>>>),
+    Zstd(ZstdDecoder<'a, CountBufReader<PeekReader<S>>>),
 }
 
 impl<'a, S: Read> Decoder<'a, S> {
@@ -33,7 +33,7 @@ impl<'a, S: Read> Decompressor<'a, S> {
     fn new_impl(stream: S, allow_unknown: bool) -> std::io::Result<Self> {
         let mut stream = PeekReader::new(stream);
         let magic_bytes = stream.peek(4)?.to_vec();
-        let stream = CountBufReader::new(BufReader::new(stream));
+        let stream = CountBufReader::new(stream);
 
         tracing::debug!(?magic_bytes, "decompressor analysis");
 
@@ -70,27 +70,27 @@ impl<'a, S: Read> Decompressor<'a, S> {
     /// Returns a reference to the wrapped stream.
     pub fn get_ref(&self) -> &S {
         match &self.decoder {
-            Decoder::Raw(stream) => stream.get_ref().get_ref().get_ref(),
-            Decoder::Gzip(stream) => stream.get_ref().get_ref().get_ref().get_ref(),
-            Decoder::Zstd(stream) => stream.get_ref().get_ref().get_ref().get_ref(),
+            Decoder::Raw(stream) => stream.get_ref().get_ref(),
+            Decoder::Gzip(stream) => stream.get_ref().get_ref().get_ref(),
+            Decoder::Zstd(stream) => stream.get_ref().get_ref().get_ref(),
         }
     }
 
     /// Returns a mutable reference to the wrapped stream.
     pub fn get_mut(&mut self) -> &mut S {
         match &mut self.decoder {
-            Decoder::Raw(stream) => stream.get_mut().get_mut().get_mut(),
-            Decoder::Gzip(stream) => stream.get_mut().get_mut().get_mut().get_mut(),
-            Decoder::Zstd(stream) => stream.get_mut().get_mut().get_mut().get_mut(),
+            Decoder::Raw(stream) => stream.get_mut().get_mut(),
+            Decoder::Gzip(stream) => stream.get_mut().get_mut().get_mut(),
+            Decoder::Zstd(stream) => stream.get_mut().get_mut().get_mut(),
         }
     }
 
     /// Returns the wrapped stream.
     pub fn into_inner(self) -> S {
         match self.decoder {
-            Decoder::Raw(stream) => stream.into_inner().into_inner().into_inner(),
-            Decoder::Gzip(stream) => stream.into_inner().into_inner().into_inner().into_inner(),
-            Decoder::Zstd(stream) => stream.finish().into_inner().into_inner().into_inner(),
+            Decoder::Raw(stream) => stream.into_inner().into_inner(),
+            Decoder::Gzip(stream) => stream.into_inner().into_inner().into_inner(),
+            Decoder::Zstd(stream) => stream.finish().into_inner().into_inner(),
         }
     }
 

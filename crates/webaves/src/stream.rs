@@ -111,14 +111,19 @@ impl<R: Read> Read for CountReader<R> {
     }
 }
 
-pub struct CountBufReader<R: BufRead> {
+pub struct CountBufReader<R: Read> {
     inner: R,
+    buf: Vec<u8>,
     count: u64,
 }
 
-impl<R: BufRead> CountBufReader<R> {
+impl<R: Read> CountBufReader<R> {
     pub fn new(inner: R) -> Self {
-        Self { inner, count: 0 }
+        Self {
+            inner,
+            buf: Vec::new(),
+            count: 0,
+        }
     }
 
     pub fn get_ref(&self) -> &R {
@@ -132,27 +137,50 @@ impl<R: BufRead> CountBufReader<R> {
     pub fn into_inner(self) -> R {
         self.inner
     }
+
+    fn shift(&mut self, amount: usize) {
+        self.buf.copy_within(amount.., 0);
+        self.buf.truncate(self.buf.len() - amount);
+    }
 }
 
-impl<R: BufRead> Read for CountBufReader<R> {
+impl<R: Read> Read for CountBufReader<R> {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
-        let size = self.inner.read(buf)?;
-        Ok(size)
+        if self.buf.is_empty() {
+            let amount = self.inner.read(buf)?;
+            self.count += amount as u64;
+
+            Ok(amount)
+        } else {
+            let len = buf.len().min(self.buf.len());
+            buf[0..len].copy_from_slice(&self.buf[0..len]);
+            self.shift(len);
+            self.count += len as u64;
+
+            Ok(len)
+        }
     }
 }
 
-impl<R: BufRead> BufRead for CountBufReader<R> {
+impl<R: Read> BufRead for CountBufReader<R> {
     fn fill_buf(&mut self) -> std::io::Result<&[u8]> {
-        self.inner.fill_buf()
+        if self.buf.len() < 16384 {
+            let mut buf = [0u8; 4096];
+            let amount = self.inner.read(&mut buf)?;
+
+            self.buf.extend_from_slice(&buf[0..amount]);
+        }
+
+        Ok(&self.buf)
     }
 
-    fn consume(&mut self, amt: usize) {
-        self.count += amt as u64;
-        self.inner.consume(amt)
+    fn consume(&mut self, len: usize) {
+        self.shift(len);
+        self.count += len as u64;
     }
 }
 
-impl<R: BufRead> CountRead for CountBufReader<R> {
+impl<R: Read> CountRead for CountBufReader<R> {
     fn read_count(&self) -> u64 {
         self.count
     }
