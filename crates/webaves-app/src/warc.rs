@@ -113,6 +113,7 @@ where
     buffer.resize(16384, 0);
 
     for path in paths {
+        tracing::info!(?path, "reading file");
         let file = InputStream::open(path).context("failed to open file")?;
         let mut reader = WARCReader::new(file)?;
 

@@ -1,16 +1,12 @@
-//! WARC file processing.
-
-use std::{
-    io::{BufRead, BufReader, Read, Take},
-    str::FromStr,
-};
-
-use thiserror::Error;
+use std::io::{BufRead, BufReader, Read, Take};
 
 use crate::{
     compress::Decompressor,
     header::{HeaderMap, HeaderParser},
 };
+
+use super::header::HeaderMapExt;
+use super::WARCError;
 
 /// Reads a WARC file.
 ///
@@ -336,125 +332,5 @@ impl<'a> HeaderMetadata<'a> {
     /// Number of bytes read in total from the (compressed) stream.
     pub fn raw_file_offset(&self) -> u64 {
         self.raw_file_offset
-    }
-}
-
-/// Errors during parsing or formatting of WARC files.
-#[derive(Error, Debug)]
-pub enum WARCError {
-    /// Not a recognized WARC file.
-    #[error("unknown format")]
-    UnknownFormat,
-
-    /// Header couldn't be parsed or formatted.
-    #[error("malformed header")]
-    MalformedHeader {
-        /// Number of bytes read from the (uncompressed) input stream.
-        offset: u64,
-        /// Source of the error.
-        #[source]
-        source: Option<Box<dyn std::error::Error + Send + Sync>>,
-    },
-
-    /// The length of the record body does not correspond with the value in the header.
-    #[error("wrong block length")]
-    WrongBlockLength {
-        /// ID of the record
-        record_id: String,
-    },
-
-    /// Field contained an invalid value.
-    #[error("invalid field value")]
-    InvalidFieldValue {
-        /// Name of the field.
-        name: String,
-        /// ID of the record.
-        record_id: String,
-        /// Source of the error.
-        #[source]
-        source: Option<Box<dyn std::error::Error + Send + Sync>>,
-    },
-
-    /// End of the record is malformed.
-    #[error("malformed footer")]
-    MalformedFooter {
-        /// Number of bytes read from the (uncompressed) input stream.
-        offset: u64,
-    },
-
-    /// IO error.
-    #[error(transparent)]
-    Io(#[from] std::io::Error),
-}
-
-/// Helper trait for [HeaderMap].
-pub trait HeaderMapExt {
-    /// Returns a string or return an error.
-    fn get_required(&self, name: &str) -> Result<&str, WARCError>;
-
-    /// Returns a parsed value if available or return an error.
-    fn get_parsed<T>(&self, name: &str) -> Result<Option<T>, WARCError>
-    where
-        T: FromStr,
-        T::Err: std::error::Error + Send + Sync + 'static;
-
-    /// Returns a parsed value or return an error.
-    fn get_parsed_required<T>(&self, name: &str) -> Result<T, WARCError>
-    where
-        T: FromStr,
-        T::Err: std::error::Error + Send + Sync + 'static;
-}
-
-impl HeaderMapExt for HeaderMap {
-    fn get_required(&self, name: &str) -> Result<&str, WARCError> {
-        match self.get(name) {
-            Some(field) => Ok(&field.text),
-            None => Err(make_field_error(self, name, None)),
-        }
-    }
-
-    fn get_parsed<T>(&self, name: &str) -> Result<Option<T>, WARCError>
-    where
-        T: FromStr,
-        T::Err: std::error::Error + Send + Sync + 'static,
-    {
-        match self.get(name) {
-            Some(field) => field
-                .text
-                .parse::<T>()
-                .map(|item| Some(item))
-                .map_err(|error| make_field_error(self, name, Some(Box::new(error)))),
-            None => Ok(None),
-        }
-    }
-
-    fn get_parsed_required<T>(&self, name: &str) -> Result<T, WARCError>
-    where
-        T: FromStr,
-        T::Err: std::error::Error + Send + Sync + 'static,
-    {
-        match self.get(name) {
-            Some(field) => field
-                .text
-                .parse::<T>()
-                .map_err(|error| make_field_error(self, name, Some(Box::new(error)))),
-            None => Err(make_field_error(self, name, None)),
-        }
-    }
-}
-
-fn make_field_error(
-    header: &HeaderMap,
-    name: &str,
-    source: Option<Box<dyn std::error::Error + Send + Sync>>,
-) -> WARCError {
-    WARCError::InvalidFieldValue {
-        name: name.to_string(),
-        record_id: header
-            .get("WARC-Record-ID")
-            .map(|field| field.text.as_str())
-            .unwrap_or_default()
-            .to_string(),
-        source,
     }
 }
