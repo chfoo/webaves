@@ -27,6 +27,7 @@ impl<R: Read> PeekReader<R> {
         self.inner
     }
 
+    #[allow(dead_code)]
     pub fn buffer(&self) -> &[u8] {
         &self.buf
     }
@@ -75,18 +76,22 @@ pub struct CountReader<R: Read> {
 }
 
 impl<R: Read> CountReader<R> {
+    #[allow(dead_code)]
     pub fn new(inner: R) -> Self {
         Self { inner, count: 0 }
     }
 
+    #[allow(dead_code)]
     pub fn get_ref(&self) -> &R {
         &self.inner
     }
 
+    #[allow(dead_code)]
     pub fn get_mut(&mut self) -> &mut R {
         &mut self.inner
     }
 
+    #[allow(dead_code)]
     pub fn into_inner(self) -> R {
         self.inner
     }

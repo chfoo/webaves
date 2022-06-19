@@ -1,4 +1,4 @@
-//! Compression helpers.
+//! Compression and decompression streams.
 
 use std::io::{BufReader, ErrorKind, Read};
 
@@ -67,6 +67,7 @@ impl<'a, S: Read> Decompressor<'a, S> {
         Self::new_impl(stream, true)
     }
 
+    /// Returns a reference to the wrapped stream.
     pub fn get_ref(&self) -> &S {
         match &self.decoder {
             Decoder::Raw(stream) => stream.get_ref().get_ref().get_ref(),
@@ -75,6 +76,7 @@ impl<'a, S: Read> Decompressor<'a, S> {
         }
     }
 
+    /// Returns a mutable reference to the wrapped stream.
     pub fn get_mut(&mut self) -> &mut S {
         match &mut self.decoder {
             Decoder::Raw(stream) => stream.get_mut().get_mut().get_mut(),
@@ -83,6 +85,7 @@ impl<'a, S: Read> Decompressor<'a, S> {
         }
     }
 
+    /// Returns the wrapped stream.
     pub fn into_inner(self) -> S {
         match self.decoder {
             Decoder::Raw(stream) => stream.into_inner().into_inner().into_inner(),
@@ -91,6 +94,7 @@ impl<'a, S: Read> Decompressor<'a, S> {
         }
     }
 
+    /// Returns the number of bytes read from the wrapped stream.
     pub fn raw_input_read_count(&self) -> u64 {
         match &self.decoder {
             Decoder::Raw(stream) => stream.read_count(),

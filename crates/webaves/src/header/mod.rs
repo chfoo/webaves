@@ -19,20 +19,29 @@ use thiserror::Error;
 
 use crate::string::StringLosslessExt;
 
+/// Multimap of name-value fields.
+///
+/// This container is a multimap where multiple values may be associated with
+/// the same name.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(from = "Vec<FieldPair>")]
+#[serde(into = "Vec<FieldPair>")]
 pub struct HeaderMap {
     pairs: Vec<FieldPair>,
 }
 
 impl HeaderMap {
+    /// Creates an empty `HeaderMap`.
     pub fn new() -> Self {
         Self { pairs: Vec::new() }
     }
 
+    /// Returns the number of fields.
     pub fn len(&self) -> usize {
         self.pairs.len()
     }
 
+    /// Returns whether the container has no fields.
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
@@ -45,6 +54,7 @@ impl HeaderMap {
         }
     }
 
+    /// Returns whether a field with the given name exists in the container.
     pub fn contains_key<N: Into<String>>(&self, name: N) -> bool {
         self.get(name).is_some()
     }
@@ -75,6 +85,7 @@ impl HeaderMap {
         }
     }
 
+    /// Returns the the first value as a string for the given name.
     pub fn get_str<N: Into<String>>(&self, name: N) -> Option<&str> {
         match self.get(name) {
             Some(field) => Some(field.text.as_ref()),
@@ -115,6 +126,18 @@ impl<N: Into<String>> Index<N> for HeaderMap {
 
     fn index(&self, index: N) -> &Self::Output {
         self.get(index).unwrap()
+    }
+}
+
+impl From<Vec<FieldPair>> for HeaderMap {
+    fn from(pairs: Vec<FieldPair>) -> Self {
+        Self { pairs }
+    }
+}
+
+impl From<HeaderMap> for Vec<FieldPair> {
+    fn from(header: HeaderMap) -> Self {
+        header.pairs
     }
 }
 
@@ -184,6 +207,7 @@ pub struct FieldPair {
 }
 
 impl FieldPair {
+    /// Creates a `FieldPair` using the given name and value.
     pub fn new(name: FieldName, value: FieldValue) -> Self {
         Self { name, value }
     }
@@ -221,6 +245,7 @@ pub struct FieldName {
 }
 
 impl FieldName {
+    /// Creates a `FieldName` with the given text and optional raw value.
     pub fn new(text: String, raw: Option<Vec<u8>>) -> Self {
         Self {
             normalized: text.to_ascii_lowercase(),
@@ -290,6 +315,7 @@ pub struct FieldValue {
 }
 
 impl FieldValue {
+    /// Creates a `FieldValue` with the given text and optional raw value.
     pub fn new(text: String, raw: Option<Vec<u8>>) -> Self {
         Self { text, raw }
     }
@@ -399,11 +425,14 @@ impl HeaderByteExt for u8 {
     }
 }
 
+/// Represents an error that may occur during formatting of a [HeaderMap].
 #[derive(Error, Debug)]
 pub enum FormatError {
+    /// Input data error.
     #[error(transparent)]
     Data(#[from] FormatDataError),
 
+    /// IO error.
     #[error(transparent)]
     Io(#[from] std::io::Error),
 }
@@ -470,6 +499,7 @@ pub struct HeaderFormatter {
 }
 
 impl HeaderFormatter {
+    /// Creates a new `HeaderFormatter` with the default configuration.
     pub fn new() -> Self {
         Self {
             lossless_scheme: false,
@@ -483,6 +513,8 @@ impl HeaderFormatter {
     /// This should only be true if header fields are constructed from sources
     /// that use [StringLosslessExt::from_utf8_lossless]. These include
     /// [HeaderParser] or manually from `From<&[u8]>`/`From<Vec<u8>>`.
+    ///
+    /// Default is false.
     pub fn lossless_scheme(&mut self, value: bool) -> &mut Self {
         self.lossless_scheme = value;
         self
@@ -495,6 +527,8 @@ impl HeaderFormatter {
     ///
     /// Sources such as [HeaderParser] include decoded text values that may
     /// significantly differ than the raw value.
+    ///
+    /// Default is false.
     pub fn use_raw(&mut self, value: bool) -> &mut Self {
         self.use_raw = value;
         self
@@ -505,6 +539,8 @@ impl HeaderFormatter {
     /// If true, the formatter will not return an error when encountering
     /// invalid character sequences. Enabling this feature will introduce security
     /// vulnerabilities.
+    ///
+    /// Default is false.
     pub fn disable_validation(&mut self, value: bool) -> &mut Self {
         self.disable_validation = value;
         self
@@ -649,6 +685,7 @@ pub struct HeaderParser {
 }
 
 impl HeaderParser {
+    /// Creates a `HeaderParser` with the default configuration.
     pub fn new() -> Self {
         Self {}
     }

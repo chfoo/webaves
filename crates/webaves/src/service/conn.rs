@@ -43,6 +43,7 @@ pub struct LocalConnector {
 }
 
 impl LocalConnector {
+    /// Creates a `LocalConnector` with an empty service ID.
     pub fn new() -> Self {
         Self {
             session_id: default_session_id(),
@@ -132,6 +133,7 @@ pub struct LocalListener {
 }
 
 impl LocalListener {
+    /// Creates a `LocalListener` with an empty session ID.
     pub fn new() -> Self {
         Self {
             session_id: default_session_id(),

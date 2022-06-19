@@ -1,6 +1,6 @@
 //! Webaves web archive software suite.
 
-//#![warn(missing_docs)]
+#![warn(missing_docs)]
 pub mod compress;
 pub mod dns;
 pub mod error;

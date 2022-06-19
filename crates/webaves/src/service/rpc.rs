@@ -39,6 +39,7 @@ where
     Lis: Listen<Stream>,
     Stream: AsyncRead + AsyncWrite + Send + 'static,
 {
+    /// Create a `ServerRunner` with the given service handler and listener.
     pub fn new(server: Serv, listener: Lis) -> Self {
         Self {
             server,

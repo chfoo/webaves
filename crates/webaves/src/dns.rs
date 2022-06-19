@@ -1,4 +1,4 @@
-//! Domain name system resolution.
+//! DNS client facade.
 
 use std::{
     net::{IpAddr, SocketAddr},
@@ -131,6 +131,7 @@ impl Default for ResolverBuilder {
 }
 
 impl ResolverBuilder {
+    /// Creates a `ResolverBuilder with the default configuration.
     pub fn new() -> Self {
         Self {
             bind_address: None,

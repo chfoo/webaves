@@ -12,6 +12,9 @@ use crate::{
     header::{HeaderMap, HeaderParser},
 };
 
+/// Reads a WARC file.
+///
+/// Decompression is handled automatically by [Decompressor].
 pub struct WARCReader<'a, S: Read> {
     stream: Option<BufReader<Decompressor<'a, S>>>,
 
@@ -29,6 +32,7 @@ pub struct WARCReader<'a, S: Read> {
 }
 
 impl<'a, S: Read> WARCReader<'a, S> {
+    /// Creates a `WARCReader` with the given input buffered stream.
     pub fn new(stream: S) -> Result<Self, WARCError> {
         Ok(Self {
             stream: Some(BufReader::new(Decompressor::new_allow_unknown(stream)?)),
@@ -43,11 +47,19 @@ impl<'a, S: Read> WARCReader<'a, S> {
         })
     }
 
+    /// Creates a `WARCReader` with the given input stream.
     pub fn new_read<R: Read>(reader: R) -> Result<WARCReader<'a, BufReader<R>>, WARCError> {
         WARCReader::new(BufReader::new(reader))
     }
 
-    pub fn begin_record(&mut self) -> Result<Option<WARCMetadata>, WARCError> {
+    /// Starts reading a record and returns the header.
+    ///
+    /// The caller must call [Self::read_block] next to advance the stream.
+    ///
+    /// Panics when called out of sequence.
+    ///
+    /// Returns `None` when there are no more records in the stream.
+    pub fn begin_record(&mut self) -> Result<Option<HeaderMetadata>, WARCError> {
         assert!(matches!(&self.state, ReaderState::StartOfHeader));
 
         let stream = self.stream.as_ref().unwrap().get_ref();
@@ -69,7 +81,7 @@ impl<'a, S: Read> WARCReader<'a, S> {
 
         self.state = ReaderState::EndOfHeader;
 
-        Ok(Some(WARCMetadata {
+        Ok(Some(HeaderMetadata {
             version: String::from_utf8_lossy(&self.magic_bytes_buffer)
                 .trim()
                 .to_string(),
@@ -158,20 +170,32 @@ impl<'a, S: Read> WARCReader<'a, S> {
         Ok(())
     }
 
-    pub fn read_block(&mut self) -> WARCBlockReader<'a, S> {
+    /// Starts reading a record body.
+    ///
+    /// The caller must read until the block stream is empty and then
+    /// call [Self::end_record].
+    ///
+    /// Panics when called out of sequence.
+    pub fn read_block(&mut self) -> BlockReader<'a, S> {
         assert!(matches!(&self.state, ReaderState::EndOfHeader));
         tracing::debug!("read_block");
 
         let stream = self.stream.take().unwrap().take(self.block_length);
         self.state = ReaderState::InBlock;
 
-        WARCBlockReader {
+        BlockReader {
             stream,
             num_bytes_read: 0,
         }
     }
 
-    pub fn end_record(&mut self, block_reader: WARCBlockReader<'a, S>) -> Result<(), WARCError> {
+    /// Finish reading a record.
+    ///
+    /// Panics when called out of sequence.
+    pub fn end_record(
+        &mut self,
+        block_reader: BlockReader<'a, S>,
+    ) -> Result<MiscellaneousData, WARCError> {
         assert!(matches!(&self.state, ReaderState::InBlock));
         tracing::debug!("end_record");
         assert!(self.stream.is_none());
@@ -184,7 +208,9 @@ impl<'a, S: Read> WARCReader<'a, S> {
 
         self.state = ReaderState::StartOfHeader;
 
-        Ok(())
+        Ok(MiscellaneousData {
+            raw: &self.header_buffer,
+        })
     }
 
     fn check_block_length(&self) -> Result<(), WARCError> {
@@ -207,10 +233,13 @@ impl<'a, S: Read> WARCReader<'a, S> {
 
         let stream = self.stream.as_mut().unwrap();
 
+        self.header_buffer.clear();
+
         for _ in 0..2 {
             self.line_buffer.clear();
             stream.read_until(b'\n', &mut self.line_buffer)?;
             self.file_offset += self.line_buffer.len() as u64;
+            self.header_buffer.extend_from_slice(&self.line_buffer);
 
             if self.line_buffer.is_empty() || !b"\r\n".contains(&self.line_buffer[0]) {
                 return Err(WARCError::MalformedFooter {
@@ -229,18 +258,20 @@ enum ReaderState {
     InBlock,
 }
 
-pub struct WARCBlockReader<'a, S: Read> {
+/// Reader stream for a record body.
+pub struct BlockReader<'a, S: Read> {
     stream: Take<BufReader<Decompressor<'a, S>>>,
     num_bytes_read: u64,
 }
 
-impl<'a, S: Read> WARCBlockReader<'a, S> {
+impl<'a, S: Read> BlockReader<'a, S> {
+    /// Number of bytes read in total from the (compressed) file.
     pub fn raw_file_offset(&self) -> u64 {
         self.stream.get_ref().get_ref().raw_input_read_count()
     }
 }
 
-impl<'a, S: Read> Read for WARCBlockReader<'a, S> {
+impl<'a, S: Read> Read for BlockReader<'a, S> {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
         let size = self.stream.read(buf)?;
         self.num_bytes_read += size as u64;
@@ -248,7 +279,20 @@ impl<'a, S: Read> Read for WARCBlockReader<'a, S> {
     }
 }
 
-pub struct WARCMetadata<'a> {
+/// Noncritical data.
+pub struct MiscellaneousData<'a> {
+    raw: &'a [u8],
+}
+
+impl<'a> MiscellaneousData<'a> {
+    /// Returns the raw bytes.
+    pub fn raw(&self) -> &[u8] {
+        self.raw
+    }
+}
+
+/// A record's header and associated file metadata.
+pub struct HeaderMetadata<'a> {
     version: String,
     version_raw: &'a [u8],
     header: HeaderMap,
@@ -258,74 +302,103 @@ pub struct WARCMetadata<'a> {
     raw_file_offset: u64,
 }
 
-impl<'a> WARCMetadata<'a> {
+impl<'a> HeaderMetadata<'a> {
+    /// Returns the WARC record version.
     pub fn version(&self) -> &str {
         self.version.as_ref()
     }
 
+    /// Returns the raw bytes of WARC record version.
     pub fn version_raw(&self) -> &[u8] {
         self.version_raw
     }
 
+    /// Returns the parsed name-value fields.
     pub fn header(&self) -> &HeaderMap {
         &self.header
     }
 
+    /// Returns the raw bytes of the name-value fields.
     pub fn header_raw(&self) -> &[u8] {
         self.header_raw
     }
 
+    /// Returns the length of the body of the record.
     pub fn block_length(&self) -> u64 {
         self.block_length
     }
 
+    /// Number of bytes read in total from the (uncompressed) stream.
     pub fn file_offset(&self) -> u64 {
         self.file_offset
     }
 
+    /// Number of bytes read in total from the (compressed) stream.
     pub fn raw_file_offset(&self) -> u64 {
         self.raw_file_offset
     }
 }
 
+/// Errors during parsing or formatting of WARC files.
 #[derive(Error, Debug)]
 pub enum WARCError {
+    /// Not a recognized WARC file.
     #[error("unknown format")]
     UnknownFormat,
 
+    /// Header couldn't be parsed or formatted.
     #[error("malformed header")]
     MalformedHeader {
+        /// Number of bytes read from the (uncompressed) input stream.
         offset: u64,
+        /// Source of the error.
         #[source]
         source: Option<Box<dyn std::error::Error + Send + Sync>>,
     },
 
+    /// The length of the record body does not correspond with the value in the header.
     #[error("wrong block length")]
-    WrongBlockLength { record_id: String },
+    WrongBlockLength {
+        /// ID of the record
+        record_id: String,
+    },
 
+    /// Field contained an invalid value.
     #[error("invalid field value")]
     InvalidFieldValue {
+        /// Name of the field.
         name: String,
+        /// ID of the record.
         record_id: String,
+        /// Source of the error.
         #[source]
         source: Option<Box<dyn std::error::Error + Send + Sync>>,
     },
 
+    /// End of the record is malformed.
     #[error("malformed footer")]
-    MalformedFooter { offset: u64 },
+    MalformedFooter {
+        /// Number of bytes read from the (uncompressed) input stream.
+        offset: u64,
+    },
 
+    /// IO error.
     #[error(transparent)]
     Io(#[from] std::io::Error),
 }
 
+/// Helper trait for [HeaderMap].
 pub trait HeaderMapExt {
+    /// Returns a string or return an error.
     fn get_required(&self, name: &str) -> Result<&str, WARCError>;
 
+    /// Returns a parsed value if available or return an error.
     fn get_parsed<T>(&self, name: &str) -> Result<Option<T>, WARCError>
     where
         T: FromStr,
         T::Err: std::error::Error + Send + Sync + 'static;
 
+    /// Returns a parsed value or return an error.
     fn get_parsed_required<T>(&self, name: &str) -> Result<T, WARCError>
     where
         T: FromStr,
