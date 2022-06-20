@@ -62,20 +62,20 @@ pub fn logging_args(command: Command) -> Command {
                 .value_parser(["error", "warn", "info", "debug", "trace"])
                 .default_value("warn")
                 .default_value_if("verbose", None, Some("info"))
-                .help("Set the level of severity of logging messages."),
+                .help("Set the level of severity of logging messages"),
         )
         .arg(
             Arg::new("verbose")
                 .long("verbose")
                 .action(ArgAction::SetTrue)
-                .help("Print informative and progress messages."),
+                .help("Print informative and progress messages"),
         )
         .arg(
             Arg::new("log_filter")
                 .long("log-filter")
                 .conflicts_with("log_level")
                 .takes_value(true)
-                .help("Filter level of severity and targets of logging messages."),
+                .help("Filter level of severity and targets of logging messages"),
         )
         .arg(
             Arg::new("log_file")
@@ -89,7 +89,7 @@ pub fn logging_args(command: Command) -> Command {
                 .long("log-format")
                 .value_parser(["default", "json"])
                 .default_value("default")
-                .help("Format of logging messages."),
+                .help("Format of logging messages"),
         )
 }
 

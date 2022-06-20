@@ -1,0 +1,25 @@
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.TH list 1  "list " 
+.SH NAME
+list \- Listing of file contents using header fields
+.SH SYNOPSIS
+\fBlist\fR [\fB\-h\fR|\fB\-\-help\fR] [\fB\-o\fR|\fB\-\-output\fR] [\fB\-\-name\fR] [\fB\-\-json\fR] <\fIinput\fR> 
+.SH DESCRIPTION
+Listing of file contents using header fields
+.SH OPTIONS
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print help information
+.TP
+\fB\-o\fR, \fB\-\-output\fR [default: \-]
+Path to output file
+.TP
+\fB\-\-name\fR [default: WARC\-Date,WARC\-Type,Content\-Type,Content\-Length,WARC\-Target\-URI]
+Show values with the given field name
+.TP
+\fB\-\-json\fR [default: false]
+Format at the output as JSON
+.TP
+<\fIinput\fR>
+Path to WARC file

@@ -10,7 +10,7 @@ use webaves::service::{
 
 pub fn create_server_command() -> Command<'static> {
     Command::new("echo-service")
-        .about("Echo service.")
+        .about("Echo service")
         .hide(true)
 }
 
@@ -32,7 +32,7 @@ pub async fn run_server(_arg_matches: &ArgMatches) -> anyhow::Result<()> {
 
 pub fn create_client_command() -> Command<'static> {
     Command::new("echo")
-        .about("Echo service client.")
+        .about("Echo service client")
         .hide(true)
 }
 

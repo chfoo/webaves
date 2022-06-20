@@ -7,28 +7,28 @@ use crate::argutil::DoHAddress;
 
 pub fn create_command() -> Command<'static> {
     let address_command = Command::new("address")
-        .about("Lookup IP addresses for a hostname.")
+        .about("Lookup IP addresses for a hostname")
         .arg(
             Arg::new("hostname")
                 .required(true)
-                .help("Target hostname to query."),
+                .help("Target hostname to query"),
         );
 
     let record_command = Command::new("record")
-        .about("Lookup records for a hostname.")
+        .about("Lookup records for a hostname")
         .arg(
             Arg::new("type")
                 .required(true)
-                .help("DNS record type as string or integer."),
+                .help("DNS record type as string or integer"),
         )
         .arg(
             Arg::new("hostname")
                 .required(true)
-                .help("Target hostname to query."),
+                .help("Target hostname to query"),
         );
 
     Command::new("dns-lookup")
-        .about("Lookup DNS records.")
+        .about("Lookup DNS records")
         .subcommand_required(true)
         .arg(
             Arg::new("bind-address")

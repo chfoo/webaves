@@ -15,13 +15,13 @@ use crate::argutil::{InputStream, OutputStream};
 
 pub fn create_command() -> Command<'static> {
     let dump_command = Command::new("dump")
-        .about("Transform WARC files to JSON.")
+        .about("Transform WARC files to JSON formatted output")
         .arg(
             Arg::new("input")
                 .required(true)
                 .multiple_values(true)
                 .value_parser(clap::value_parser!(PathBuf))
-                .help("Path to WARC file."),
+                .help("Path to WARC file"),
         )
         .arg(
             Arg::new("output")
@@ -30,16 +30,16 @@ pub fn create_command() -> Command<'static> {
                 .takes_value(true)
                 .default_value("-")
                 .value_parser(clap::value_parser!(PathBuf))
-                .help("Path to output file."),
+                .help("Path to output file"),
         );
     let list_command = Command::new("list")
-        .about("List WARC file contents.")
+        .about("Listing of file contents using header fields")
         .arg(
             Arg::new("input")
                 .required(true)
                 .multiple_values(true)
                 .value_parser(clap::value_parser!(PathBuf))
-                .help("Path to WARC file."),
+                .help("Path to WARC file"),
         )
         .arg(
             Arg::new("output")
@@ -48,7 +48,7 @@ pub fn create_command() -> Command<'static> {
                 .takes_value(true)
                 .default_value("-")
                 .value_parser(clap::value_parser!(PathBuf))
-                .help("Path to output file."),
+                .help("Path to output file"),
         )
         .arg(
             Arg::new("name")
@@ -62,7 +62,7 @@ pub fn create_command() -> Command<'static> {
                     "Content-Length",
                     "WARC-Target-URI",
                 ])
-                .help("Show values with the given field name."),
+                .help("Show values with the given field name"),
         )
         .arg(
             Arg::new("json")
@@ -73,6 +73,7 @@ pub fn create_command() -> Command<'static> {
 
     Command::new("warc")
         .about("Process WARC files.")
+        .long_about("Read or manipulate WARC files")
         .subcommand_required(true)
         .subcommand(dump_command)
         .subcommand(list_command)

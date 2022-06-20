@@ -1,31 +1,77 @@
 # warc subcommand
 
-The `warc` subcommand provides manipulation of WARC files.
+## Overview
 
-For a list of subcommands, type:
-
-    webaves warc --help
+```{eval-rst}
+.. include:: man_page_fragments/webaves.warc.rst
+```
 
 ## dump
 
-The `dump` subcommand reads WARC files and transforms them to JSON formatted output.
+```{eval-rst}
+.. include:: man_page_fragments/webaves.warc.dump.rst
+```
 
-Example:
+### Example
 
-    webaves --verbose warc dump input_file.warc.gz output_file.json
+```bash
+webaves --verbose warc dump input_file.warc.gz --output output_file.json
+```
+
+### Format
 
 The output format is multiple JSON documents where each document is on a single line.
 
 For each record in the WARC file, it outputs 3 types of documents:
 
-1. `{"Header": ... }`: Header portion of the record.
-2. Multiple `{"Block": {"data": [..]}}`: Block portion of the record.
-3. `"EndOfRecord"`: Indicates the end of a record.
+1. Header portion of the record.
+2. Multiple block portions of the record.
+3. End of a record indicator.
+
+Example header:
+
+```json
+{
+    "Header": {
+        "version": "WARC/1.1",
+        "fields": [
+            {
+                "name": {
+                    "text": "Field-Name"
+                },
+                "value": {
+                    "text": "Field value"
+                }
+            }
+        ]
+    }
+}
+```
+
+Example part of a block:
+
+```json
+{
+    "Block": {
+        "data": [ 72, 101, 108, 108, 111, 32, 119, 111, 114, 108, 100, 33 ]
+    }
+}
+```
+
+End of record indicator:
+
+```json
+"EndOfRecord"
+```
 
 ## list
 
-The `list` subcommand reads WARC files and lists out the contents from the header fields.
+```{eval-rst}
+.. include:: man_page_fragments/webaves.warc.list.rst
+```
 
-Example:
+### Example
 
-    webaves --verbose warc list input_file.warc.gz output_file.txt
+```bash
+webaves warc list input_file.warc.gz
+```

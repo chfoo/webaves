@@ -1,0 +1,19 @@
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.TH record 1  "record " 
+.SH NAME
+record \- Lookup records for a hostname
+.SH SYNOPSIS
+\fBrecord\fR [\fB\-h\fR|\fB\-\-help\fR] <\fItype\fR> <\fIhostname\fR> 
+.SH DESCRIPTION
+Lookup records for a hostname
+.SH OPTIONS
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print help information
+.TP
+<\fItype\fR>
+DNS record type as string or integer
+.TP
+<\fIhostname\fR>
+Target hostname to query

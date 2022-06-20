@@ -1,0 +1,29 @@
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.TH dns-lookup 1  "dns-lookup " 
+.SH NAME
+dns\-lookup \- Lookup DNS records
+.SH SYNOPSIS
+\fBdns\-lookup\fR [\fB\-h\fR|\fB\-\-help\fR] [\fB\-\-bind\-address\fR] [\fB\-\-doh\-server\fR] <\fIsubcommands\fR>
+.SH DESCRIPTION
+Lookup DNS records
+.SH OPTIONS
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print help information
+.TP
+\fB\-\-bind\-address\fR
+Address of outgoing network interface. (Example: 192.168.1.100:0)
+.TP
+\fB\-\-doh\-server\fR
+Address and hostname of DNS\-over\-HTTPS server. (Example: 10.0.0.0:443/dns.example.com)
+.SH SUBCOMMANDS
+.TP
+dns\-lookup\-address(1)
+Lookup IP addresses for a hostname
+.TP
+dns\-lookup\-record(1)
+Lookup records for a hostname
+.TP
+dns\-lookup\-help(1)
+Print this message or the help of the given subcommand(s)

@@ -1,0 +1,43 @@
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.TH webaves 1  "webaves 0.0.0" 
+.SH NAME
+webaves \- Web archive software suite
+.SH SYNOPSIS
+\fBwebaves\fR [\fB\-h\fR|\fB\-\-help\fR] [\fB\-V\fR|\fB\-\-version\fR] [\fB\-l\fR|\fB\-\-log\-level\fR] [\fB\-\-verbose\fR] [\fB\-\-log\-filter\fR] [\fB\-\-log\-file\fR] [\fB\-\-log\-format\fR] <\fIsubcommands\fR>
+.SH DESCRIPTION
+Web archive software suite
+.SH OPTIONS
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print help information
+.TP
+\fB\-V\fR, \fB\-\-version\fR
+Print version information
+.TP
+\fB\-l\fR, \fB\-\-log\-level\fR [default: warn]
+Set the level of severity of logging messages
+.TP
+\fB\-\-verbose\fR [default: false]
+Print informative and progress messages
+.TP
+\fB\-\-log\-filter\fR
+Filter level of severity and targets of logging messages
+.TP
+\fB\-\-log\-file\fR
+Write logging messages to a file.
+.TP
+\fB\-\-log\-format\fR [default: default]
+Format of logging messages
+.SH SUBCOMMANDS
+.TP
+webaves\-dns\-lookup(1)
+Lookup DNS records
+.TP
+webaves\-warc(1)
+Process WARC files.
+.TP
+webaves\-help(1)
+Print this message or the help of the given subcommand(s)
+.SH VERSION
+v0.0.0

@@ -7,6 +7,7 @@ use std::{
 };
 
 use anyhow::Context;
+use clap::Command;
 
 #[derive(Clone, Debug)]
 pub struct DoHAddress(pub SocketAddr, pub String);
@@ -85,6 +86,19 @@ impl Write for OutputStream {
             OutputStream::Stdout(s) => s.flush(),
         }
     }
+}
+
+pub fn build_commands() -> Command<'static> {
+    let command = Command::new(clap::crate_name!())
+        .about("Web archive software suite")
+        .version(clap::crate_version!())
+        .subcommand_required(true)
+        .subcommand(crate::dns_lookup::create_command())
+        .subcommand(crate::echo::create_server_command())
+        .subcommand(crate::echo::create_client_command())
+        .subcommand(crate::warc::create_command());
+
+    crate::logging::logging_args(command)
 }
 
 pub fn get_total_file_size(paths: &[&PathBuf]) -> anyhow::Result<u64> {

@@ -4,20 +4,9 @@ mod echo;
 mod logging;
 mod warc;
 
-use clap::Command;
-
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let command = Command::new(clap::crate_name!())
-        .version(clap::crate_version!())
-        .subcommand_required(true)
-        .subcommand(crate::dns_lookup::create_command())
-        .subcommand(crate::echo::create_server_command())
-        .subcommand(crate::echo::create_client_command())
-        .subcommand(crate::warc::create_command());
-
-    let command = crate::logging::logging_args(command);
-
+    let command = crate::argutil::build_commands();
     let arg_matches = command.get_matches();
 
     crate::logging::set_up_logging(&arg_matches)?;
@@ -38,6 +27,6 @@ async fn main() -> anyhow::Result<()> {
         Err(error) => {
             tracing::error!(%error, "program exit error");
             Err(error)
-        },
+        }
     }
 }
