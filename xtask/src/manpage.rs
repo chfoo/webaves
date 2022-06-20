@@ -8,6 +8,7 @@ pub fn handle_manpage_command() -> anyhow::Result<()> {
         .arg("run")
         .arg("--bin")
         .arg("gen_man_page")
+        .arg("--features=gen_man_page")
         .stdout(Stdio::piped())
         .spawn()?;
 

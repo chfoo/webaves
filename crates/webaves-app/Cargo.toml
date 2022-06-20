@@ -13,7 +13,7 @@ default-run = "webaves-app"
 [dependencies]
 anyhow = { version = "1.0", features = ["backtrace"] }
 clap = { version = "3.2", features = ["color", "suggestions", "cargo", "unicode", "wrap_help"] }
-clap_mangen = "0.1"
+clap_mangen = { version = "0.1", optional = true }
 console = "0.15"
 csv = "1.1"
 indicatif = "0.17.0-rc.11"
@@ -26,6 +26,10 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt", "json"] }
 webaves = { version = "0.0", path = "../webaves/" }
 
+[features]
+gen_man_page = ["clap_mangen"]
+
 [[bin]]
 name = "gen_man_page"
 path = "src/manpage.rs"
+required-features = ["gen_man_page"]
