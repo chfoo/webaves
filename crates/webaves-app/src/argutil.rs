@@ -93,6 +93,8 @@ pub fn build_commands() -> Command<'static> {
         .about("Web archive software suite")
         .version(clap::crate_version!())
         .subcommand_required(true)
+        .subcommand(Command::new("crash_error").hide(true))
+        .subcommand(Command::new("crash_panic").hide(true))
         .subcommand(crate::dns_lookup::create_command())
         .subcommand(crate::echo::create_server_command())
         .subcommand(crate::echo::create_client_command())

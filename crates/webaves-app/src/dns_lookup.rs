@@ -43,6 +43,7 @@ pub fn create_command() -> Command<'static> {
                 .action(ArgAction::Append)
                 .takes_value(true)
                 .value_parser(clap::value_parser!(DoHAddress))
+                .default_values(&["1.1.1.1:443/cloudflare-dns.com", "8.8.8.8:443/google.dns"])
                 .help("Address and hostname of DNS-over-HTTPS server. (Example: 10.0.0.0:443/dns.example.com)"),
         )
         .subcommand(address_command)
@@ -67,11 +68,7 @@ fn config_resolver(
                 builder = builder.with_doh_server(value.0, &value.1);
             }
         }
-        None => {
-            builder = builder
-                .with_doh_server("1.1.1.1:443".parse().unwrap(), "cloudflare-dns.com")
-                .with_doh_server("8.8.8.8:443".parse().unwrap(), "google.dns");
-        }
+        None => {}
     }
 
     match matches.get_one::<SocketAddr>("bind-address") {

@@ -1,6 +1,7 @@
 use std::{
     fs::File,
     io::{BufWriter, Write},
+    panic::PanicInfo,
     path::{Path, PathBuf},
     sync::{Mutex, RwLock},
 };
@@ -142,7 +143,18 @@ pub fn set_up_logging(arg_matches: &ArgMatches) -> anyhow::Result<()> {
         .with(subscriber_json)
         .init();
 
+    set_up_panic_logging();
+
     Ok(())
+}
+
+fn set_up_panic_logging() {
+    let original_hook = std::panic::take_hook();
+
+    std::panic::set_hook(Box::new(move |panic_info: &PanicInfo| {
+        tracing::error!(message = ?panic_info, "panic");
+        original_hook(panic_info);
+    }));
 }
 
 pub fn progress_bar() -> Option<ProgressBar> {
