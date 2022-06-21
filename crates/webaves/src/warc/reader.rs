@@ -43,6 +43,13 @@ impl<'a, S: Read> WARCReader<'a, S> {
         })
     }
 
+    /// Returns the wrapped stream.
+    ///
+    /// Panics if the reader is in the middle of reading a record.
+    pub fn into_inner(self) -> S {
+       self.stream.unwrap().into_inner().into_inner()
+    }
+
     /// Creates a `WARCReader` with the given input stream.
     pub fn new_read<R: Read>(reader: R) -> Result<WARCReader<'a, BufReader<R>>, WARCError> {
         WARCReader::new(BufReader::new(reader))
@@ -56,7 +63,7 @@ impl<'a, S: Read> WARCReader<'a, S> {
     ///
     /// Returns `None` when there are no more records in the stream.
     pub fn begin_record(&mut self) -> Result<Option<HeaderMetadata>, WARCError> {
-        assert!(matches!(&self.state, ReaderState::StartOfHeader));
+        assert!(self.state == ReaderState::StartOfHeader);
 
         let stream = self.stream.as_ref().unwrap().get_ref();
         let start_file_offset = self.file_offset;
@@ -173,7 +180,7 @@ impl<'a, S: Read> WARCReader<'a, S> {
     ///
     /// Panics when called out of sequence.
     pub fn read_block(&mut self) -> BlockReader<'a, S> {
-        assert!(matches!(&self.state, ReaderState::EndOfHeader));
+        assert!(self.state == ReaderState::EndOfHeader);
         tracing::debug!("read_block");
 
         let stream = self.stream.take().unwrap().take(self.block_length);
@@ -192,7 +199,7 @@ impl<'a, S: Read> WARCReader<'a, S> {
         &mut self,
         block_reader: BlockReader<'a, S>,
     ) -> Result<MiscellaneousData, WARCError> {
-        assert!(matches!(&self.state, ReaderState::InBlock));
+        assert!(self.state == ReaderState::InBlock);
         tracing::debug!("end_record");
         assert!(self.stream.is_none());
 
@@ -248,6 +255,7 @@ impl<'a, S: Read> WARCReader<'a, S> {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ReaderState {
     StartOfHeader,
     EndOfHeader,

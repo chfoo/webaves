@@ -1,11 +1,24 @@
 //! Compression and decompression streams.
 
-use std::io::{ErrorKind, Read};
+use std::io::{ErrorKind, Read, Write};
 
-use flate2::bufread::MultiGzDecoder;
+use flate2::Compression as GzCompression;
+use flate2::{bufread::MultiGzDecoder, write::GzEncoder};
 use zstd::stream::read::Decoder as ZstdDecoder;
+use zstd::stream::write::Encoder as ZstdEncoder;
 
 use crate::stream::{CountBufReader, CountRead, PeekReader};
+
+/// Specifies a compression or decompression format.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CompressionFormat {
+    /// Apply no codec. Pass data through as is.
+    Raw,
+    /// Gzip file format.
+    Gzip,
+    /// Zstandard file format.
+    Zstd,
+}
 
 #[allow(clippy::large_enum_variant)]
 enum Decoder<'a, S: Read> {
@@ -110,6 +123,123 @@ impl<'a, S: Read> Read for Decompressor<'a, S> {
             Decoder::Raw(stream) => stream.read(buf),
             Decoder::Gzip(stream) => stream.read(buf),
             Decoder::Zstd(stream) => stream.read(buf),
+        }
+    }
+}
+
+enum Encoder<'a, S: Write> {
+    Raw(S),
+    Gzip(GzEncoder<S>),
+    Zstd(ZstdEncoder<'a, S>),
+}
+
+/// Specifies a compression level.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CompressionLevel {
+    /// Fastest speed but with low compression ratio.
+    Fast,
+
+    /// Default level specified by the codec.
+    CodecDefault,
+
+    /// Recommended balanced ratio of speed and compression.
+    ///
+    /// Default value.
+    Optimal,
+
+    /// Almost best compression ratio at the cost of slow speed.
+    High,
+}
+
+impl Default for CompressionLevel {
+    fn default() -> Self {
+        Self::Optimal
+    }
+}
+
+impl CompressionLevel {
+    fn get_int_for_format(&self, format: CompressionFormat) -> i32 {
+        match format {
+            CompressionFormat::Raw => 0,
+            CompressionFormat::Gzip => match self {
+                CompressionLevel::Fast => 1,
+                CompressionLevel::CodecDefault => 6,
+                CompressionLevel::Optimal => 9,
+                CompressionLevel::High => 9,
+            },
+            CompressionFormat::Zstd => match self {
+                CompressionLevel::Fast => 1,
+                CompressionLevel::CodecDefault => 3,
+                CompressionLevel::Optimal => 3,
+                CompressionLevel::High => 19,
+            },
+        }
+    }
+}
+
+/// Compression of Gzip and Zstd files.
+pub struct Compressor<'a, S: Write> {
+    encoder: Encoder<'a, S>,
+}
+
+impl<'a, S: Write> Compressor<'a, S> {
+    /// Create a compressor with the given stream and codec options.
+    pub fn new(stream: S, format: CompressionFormat, level: CompressionLevel) -> std::io::Result<Self> {
+        let encoder = match format {
+            CompressionFormat::Raw => Encoder::Raw(stream),
+            CompressionFormat::Gzip => Encoder::Gzip(GzEncoder::new(
+                stream,
+                GzCompression::new(level.get_int_for_format(format) as u32),
+            )),
+            CompressionFormat::Zstd => {
+                Encoder::Zstd(ZstdEncoder::new(stream, level.get_int_for_format(format))?)
+            }
+        };
+        Ok(Self { encoder })
+    }
+
+    /// Returns a reference to the wrapped stream.
+    pub fn get_ref(&self) -> &S {
+        match &self.encoder {
+            Encoder::Raw(stream) => stream,
+            Encoder::Gzip(stream) => stream.get_ref(),
+            Encoder::Zstd(stream) => stream.get_ref(),
+        }
+    }
+
+    /// Returns a mutable reference to the wrapped stream.
+    pub fn get_mut(&mut self) -> &mut S {
+        match &mut self.encoder {
+            Encoder::Raw(stream) => stream,
+            Encoder::Gzip(stream) => stream.get_mut(),
+            Encoder::Zstd(stream) => stream.get_mut(),
+        }
+    }
+
+    /// Completes a compression file and returns the wrapped stream.
+    pub fn finish(self) -> std::io::Result<S> {
+        match self.encoder {
+            Encoder::Raw(stream) => Ok(stream),
+            Encoder::Gzip(stream) => stream.finish(),
+            Encoder::Zstd(stream) => stream.finish()
+        }
+    }
+}
+
+impl<'a, S: Write> Write for Compressor<'a, S> {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        match &mut self.encoder {
+            Encoder::Raw(stream) => stream.write(buf),
+            Encoder::Gzip(stream) => stream.write(buf),
+            Encoder::Zstd(stream) => stream.write(buf),
+        }
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        match &mut self.encoder {
+            Encoder::Raw(stream) => stream.flush(),
+            Encoder::Gzip(stream) => stream.flush(),
+            Encoder::Zstd(stream) => stream.flush(),
         }
     }
 }

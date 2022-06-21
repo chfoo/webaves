@@ -1,6 +1,13 @@
-use std::{fs::File, io::Read, path::PathBuf};
+use std::{
+    fs::File,
+    io::{Read, Write},
+    path::PathBuf,
+};
 
-use webaves::warc::WARCReader;
+use webaves::{
+    header::HeaderMap,
+    warc::{WARCReader, WARCWriter},
+};
 
 #[test_log::test]
 fn minimal_warc_read() {
@@ -57,4 +64,48 @@ fn minimal_warc_read() {
     // eof
     let result = reader.begin_record().unwrap();
     assert!(result.is_none());
+}
+
+#[test_log::test]
+fn minimal_warc_write() {
+    let output_buf = Vec::new();
+    let mut writer = WARCWriter::new(output_buf);
+
+    let mut header = HeaderMap::new();
+    header.insert("WARC-Type", "resource");
+    header.insert("WARC-Date", "2000-12-30T01:02:03Z");
+    header.insert(
+        "WARC-Record-ID",
+        "<urn:uuid:00000001-0002-0003-0004-000000000005>",
+    );
+    header.insert("Content-Length", "10");
+
+    writer.begin_record(&header).unwrap();
+    let mut block_writer = writer.write_block();
+    block_writer
+        .write_all(b"\xf0\xf1\xf2\xf3\xf4\xf5\xf6\xf7\xf8\xf9")
+        .unwrap();
+    writer.end_record(block_writer).unwrap();
+
+    let mut header = HeaderMap::new();
+    header.insert("WARC-Type", "resource");
+    header.insert("WARC-Date", "2001-12-30T01:02:03Z");
+    header.insert(
+        "WARC-Record-ID",
+        "<urn:uuid:10000001-0002-0003-0004-000000000005>",
+    );
+    header.insert("Content-Length", "16");
+
+    writer.begin_record(&header).unwrap();
+    let mut block_writer = writer.write_block();
+    block_writer
+        .write_all(b"\xf0\xf1\xf2\xf3\xf4\xf5\xf6\xf7\xf8\xf9\xfa\xfb\xfc\xfd\xfe\xff")
+        .unwrap();
+    writer.end_record(block_writer).unwrap();
+
+    let output_buf = writer.into_inner();
+    let path = [env!("CARGO_MANIFEST_DIR"), "tests/warc_minimal.warc"]
+        .iter()
+        .collect::<PathBuf>();
+    assert_eq!(output_buf, std::fs::read(path).unwrap());
 }

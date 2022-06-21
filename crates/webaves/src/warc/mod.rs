@@ -1,9 +1,11 @@
 //! WARC file processing.
 mod header;
 mod reader;
+mod writer;
 
 pub use header::*;
 pub use reader::*;
+pub use writer::*;
 
 use thiserror::Error;
 
