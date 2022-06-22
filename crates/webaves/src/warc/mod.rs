@@ -17,7 +17,7 @@ pub enum WARCError {
     UnknownFormat,
 
     /// Header couldn't be parsed or formatted.
-    #[error("malformed header")]
+    #[error("malformed header (at offset {offset})")]
     MalformedHeader {
         /// Number of bytes read from the (uncompressed) input stream.
         offset: u64,
@@ -27,14 +27,14 @@ pub enum WARCError {
     },
 
     /// The length of the record body does not correspond with the value in the header.
-    #[error("wrong block length")]
+    #[error("wrong block length (at record ID {record_id}")]
     WrongBlockLength {
         /// ID of the record
         record_id: String,
     },
 
     /// Field contained an invalid value.
-    #[error("invalid field value")]
+    #[error("invalid field value (with name {name}, at record ID {record_id})")]
     InvalidFieldValue {
         /// Name of the field.
         name: String,
@@ -46,7 +46,7 @@ pub enum WARCError {
     },
 
     /// End of the record is malformed.
-    #[error("malformed footer")]
+    #[error("malformed footer (at offset {offset})")]
     MalformedFooter {
         /// Number of bytes read from the (uncompressed) input stream.
         offset: u64,

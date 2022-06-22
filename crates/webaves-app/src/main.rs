@@ -24,7 +24,7 @@ async fn main_inner() -> i32 {
             let error_message_line = format!("{:#}", error);
             let backtrace = format!("{}", error.backtrace());
             tracing::error!(error = %error_message_line, %backtrace, "program exit error");
-            eprintln!("{error_message_line}");
+            eprintln!("Error: {error_message_line}");
             1
         }
     }

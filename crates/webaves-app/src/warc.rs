@@ -1,17 +1,17 @@
 use std::{
-    io::{Read, Write},
+    io::{BufRead, BufReader, Read, Write},
     path::PathBuf,
 };
 
-use anyhow::Context;
 use clap::{Arg, ArgAction, ArgMatches, Command};
 use serde::{Deserialize, Serialize};
 use webaves::{
+    compress::CompressionFormat,
     header::HeaderMap,
-    warc::{HeaderMetadata, WARCReader},
+    warc::{HeaderMetadata, WARCReader, WARCWriter},
 };
 
-use crate::argutil::{InputStream, OutputStream};
+use crate::argutil::{MultiInput, OutputStream};
 
 pub fn create_command() -> Command<'static> {
     let dump_command = Command::new("dump")
@@ -31,6 +31,12 @@ pub fn create_command() -> Command<'static> {
                 .default_value("-")
                 .value_parser(clap::value_parser!(PathBuf))
                 .help("Path to output file"),
+        )
+        .arg(
+            Arg::new("overwrite")
+                .long("overwrite")
+                .action(ArgAction::SetTrue)
+                .help("Allow overwriting existing files."),
         );
     let list_command = Command::new("list")
         .about("Listing of file contents using header fields")
@@ -71,23 +77,57 @@ pub fn create_command() -> Command<'static> {
                 .help("Format at the output as JSON"),
         );
 
+    let load_command = Command::new("load")
+        .about("Transform JSON formatted input to WARC file")
+        .arg(
+            Arg::new("input")
+                .required(true)
+                .multiple_values(true)
+                .value_parser(clap::value_parser!(PathBuf))
+                .help("Path to JSON file"),
+        )
+        .arg(
+            Arg::new("compression_format")
+                .long("compress")
+                .value_parser(["none", "gzip", "zstd"])
+                .default_value("none")
+                .help("Apply compression to the output."),
+        )
+        .arg(
+            Arg::new("output")
+                .long("output")
+                .short('o')
+                .takes_value(true)
+                .default_value("-")
+                .value_parser(clap::value_parser!(PathBuf))
+                .help("Path to output WARC"),
+        )
+        .arg(
+            Arg::new("overwrite")
+                .long("overwrite")
+                .action(ArgAction::SetTrue)
+                .help("Allow overwriting existing files."),
+        );
+
     Command::new("warc")
         .about("Process WARC files.")
         .long_about("Read or manipulate WARC files")
         .subcommand_required(true)
         .subcommand(dump_command)
         .subcommand(list_command)
+        .subcommand(load_command)
 }
 
 pub fn run(global_matches: &ArgMatches, arg_matches: &ArgMatches) -> anyhow::Result<()> {
     match arg_matches.subcommand() {
         Some(("dump", sub_matches)) => handle_dump_command(global_matches, sub_matches),
         Some(("list", sub_matches)) => handle_list_command(global_matches, sub_matches),
+        Some(("load", sub_matches)) => handle_load_command(global_matches, sub_matches),
         _ => unreachable!(),
     }
 }
 
-fn read_files_loop<FH, FB, FF>(
+fn read_warc_files_loop<FH, FB, FF>(
     global_matches: &ArgMatches,
     sub_matches: &ArgMatches,
     mut header_callback: FH,
@@ -99,23 +139,13 @@ where
     FB: FnMut(&mut OutputStream, &[u8], usize) -> anyhow::Result<()>,
     FF: FnMut(&mut OutputStream) -> anyhow::Result<()>,
 {
-    let paths = sub_matches
-        .get_many::<PathBuf>("input")
-        .unwrap()
-        .collect::<Vec<&PathBuf>>();
-    let total_file_size = crate::argutil::get_total_file_size(&paths)?;
-    let output = sub_matches.get_one::<PathBuf>("output").unwrap();
-    let mut output = OutputStream::open(output).context("failed to create file")?;
-
-    let progress_bar = crate::logging::create_and_config_progress_bar(global_matches);
-    progress_bar.set_length(total_file_size);
+    let mut multi_input = MultiInput::from_args(global_matches, sub_matches)?;
+    let mut output = OutputStream::from_args(sub_matches)?;
 
     let mut buffer = Vec::new();
     buffer.resize(16384, 0);
 
-    for path in paths {
-        tracing::info!(?path, "reading file");
-        let file = InputStream::open(path).context("failed to open file")?;
+    while let Some(file) = multi_input.next_file()? {
         let mut reader = WARCReader::new(file)?;
 
         loop {
@@ -137,7 +167,9 @@ where
                 }
 
                 body_callback(&mut output, &buffer, amount)?;
-                progress_bar.set_position(block.raw_file_offset());
+                multi_input
+                    .progress_bar
+                    .set_position(block.raw_file_offset());
             }
 
             reader.end_record(block)?;
@@ -145,7 +177,7 @@ where
         }
     }
 
-    progress_bar.finish_and_clear();
+    multi_input.progress_bar.finish_and_clear();
 
     Ok(())
 }
@@ -154,7 +186,7 @@ fn handle_dump_command(
     global_matches: &ArgMatches,
     sub_matches: &ArgMatches,
 ) -> anyhow::Result<()> {
-    read_files_loop(
+    read_warc_files_loop(
         global_matches,
         sub_matches,
         |output, metadata| {
@@ -194,7 +226,7 @@ fn handle_list_command(
         .collect::<Vec<&String>>();
     let is_json = sub_matches.get_one::<bool>("json").cloned().unwrap();
 
-    read_files_loop(
+    read_warc_files_loop(
         global_matches,
         sub_matches,
         |output, metadata| {
@@ -221,6 +253,74 @@ fn handle_list_command(
         |_output, _buffer, _amount| Ok(()),
         |_output| Ok(()),
     )
+}
+
+fn handle_load_command(
+    global_matches: &ArgMatches,
+    sub_matches: &ArgMatches,
+) -> anyhow::Result<()> {
+    let compression_format = get_compression_format(sub_matches);
+    let mut multi_input = MultiInput::from_args(global_matches, sub_matches)?;
+    let output = OutputStream::from_args(sub_matches)?;
+    let mut writer = WARCWriter::new_compressed(output, compression_format, Default::default());
+
+    let mut buffer = Vec::new();
+    buffer.resize(16384, 0);
+
+    while let Some(file) = multi_input.next_file()? {
+        let mut reader = BufReader::new(file);
+        let mut line_buf = String::new();
+        let mut block_writer = None;
+
+        loop {
+            line_buf.clear();
+            let amount = reader.read_line(&mut line_buf)?;
+            let line = line_buf.trim();
+
+            if line.is_empty() {
+                break;
+            }
+
+            let element = serde_json::from_str::<DumpElementOwned>(line)?;
+
+            match element {
+                DumpElementOwned::Header { version, fields } => {
+                    anyhow::ensure!(block_writer.is_none());
+                    writer.set_version(version);
+
+                    writer.begin_record(&fields)?;
+                    block_writer = Some(writer.write_block());
+                }
+                DumpElementOwned::Block { data } => {
+                    anyhow::ensure!(block_writer.is_some());
+                    block_writer.as_mut().unwrap().write_all(&data)?;
+                }
+                DumpElementOwned::EndOfRecord => {
+                    anyhow::ensure!(block_writer.is_some());
+                    writer.end_record(block_writer.take().unwrap())?;
+                }
+            }
+
+            multi_input.progress_bar.inc(amount as u64);
+        }
+    }
+
+    multi_input.progress_bar.finish_and_clear();
+
+    Ok(())
+}
+
+fn get_compression_format(arg_matches: &ArgMatches) -> CompressionFormat {
+    match arg_matches
+        .get_one::<String>("compression_format")
+        .unwrap()
+        .as_str()
+    {
+        "none" => CompressionFormat::Raw,
+        "gzip" => CompressionFormat::Gzip,
+        "zstd" => CompressionFormat::Zstd,
+        _ => unreachable!(),
+    }
 }
 
 #[derive(Serialize)]

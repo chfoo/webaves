@@ -233,6 +233,7 @@ impl Display for FieldPair {
 ///
 /// The contents may be contain malformed or invalid sequences.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(from = "FieldNameDe")]
 pub struct FieldName {
     #[serde(skip)]
     normalized: String,
@@ -300,6 +301,23 @@ impl Display for FieldName {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(&self.text)
     }
+}
+
+impl From<FieldNameDe> for FieldName {
+    fn from(original: FieldNameDe) -> Self {
+        Self {
+            normalized: original.text.to_ascii_lowercase(),
+            text: original.text,
+            raw: original.raw,
+        }
+    }
+}
+
+#[derive(Deserialize)]
+struct FieldNameDe {
+    text: String,
+
+    raw: Option<Vec<u8>>,
 }
 
 /// Represents the value portion of a field.
