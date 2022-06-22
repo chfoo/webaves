@@ -3,13 +3,13 @@
 ## Overview
 
 ```{eval-rst}
-.. include:: man_page_fragments/webaves.warc.rst
+.. include:: ../man_page_fragments/webaves.warc.rst
 ```
 
 ## dump
 
 ```{eval-rst}
-.. include:: man_page_fragments/webaves.warc.dump.rst
+.. include:: ../man_page_fragments/webaves.warc.dump.rst
 ```
 
 ### Example
@@ -67,11 +67,23 @@ End of record indicator:
 ## list
 
 ```{eval-rst}
-.. include:: man_page_fragments/webaves.warc.list.rst
+.. include:: ../man_page_fragments/webaves.warc.list.rst
 ```
 
 ### Example
 
 ```bash
 webaves warc list input_file.warc.gz
+```
+
+## load
+
+```{eval-rst}
+.. include:: ../man_page_fragments/webaves.warc.load.rst
+```
+
+### Example
+
+```bash
+webaves warc --verbose load input_file.json --output output_file.warc.zstd --format zstd
 ```

@@ -6,8 +6,9 @@
 
 Installation <install>
 Running <usage>
-dns-lookup
-warc
+commands/global
+commands/dns-lookup
+commands/warc
 Application changelog <changelog_app>
 API changelog <changelog_lib>
 ```

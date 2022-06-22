@@ -4,7 +4,7 @@
 .SH NAME
 dump \- Transform WARC files to JSON formatted output
 .SH SYNOPSIS
-\fBdump\fR [\fB\-h\fR|\fB\-\-help\fR] [\fB\-o\fR|\fB\-\-output\fR] <\fIinput\fR> 
+\fBdump\fR [\fB\-h\fR|\fB\-\-help\fR] [\fB\-o\fR|\fB\-\-output\fR] [\fB\-\-overwrite\fR] <\fIinput\fR> 
 .SH DESCRIPTION
 Transform WARC files to JSON formatted output
 .SH OPTIONS
@@ -14,6 +14,9 @@ Print help information
 .TP
 \fB\-o\fR, \fB\-\-output\fR [default: \-]
 Path to output file
+.TP
+\fB\-\-overwrite\fR [default: false]
+Allow overwriting existing files.
 .TP
 <\fIinput\fR>
 Path to WARC file

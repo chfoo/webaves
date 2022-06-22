@@ -23,5 +23,8 @@ dump
 list
    Listing of file contents using header fields
 
+load
+   Transform JSON formatted input to WARC file
+
 help
    Print this message or the help of the given subcommand(s)

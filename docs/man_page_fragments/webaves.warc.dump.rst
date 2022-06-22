@@ -1,7 +1,8 @@
 Synopsis
 ========
 
-**dump** [**-h**\ \|\ **--help**] [**-o**\ \|\ **--output**] <*input*>
+**dump** [**-h**\ \|\ **--help**] [**-o**\ \|\ **--output**]
+[**--overwrite**] <*input*>
 
 Description
 ===========
@@ -16,6 +17,9 @@ Options
 
 **-o**, **--output** [default: -]
    Path to output file
+
+**--overwrite** [default: false]
+   Allow overwriting existing files.
 
 <*input*>
    Path to WARC file

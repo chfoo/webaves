@@ -18,7 +18,7 @@ Options
 **--bind-address**
    Address of outgoing network interface. (Example: 192.168.1.100:0)
 
-**--doh-server**
+**--doh-server** [default: 1.1.1.1:443/cloudflare-dns.com,8.8.8.8:443/google.dns]
    Address and hostname of DNS-over-HTTPS server. (Example:
    10.0.0.0:443/dns.example.com)
 
