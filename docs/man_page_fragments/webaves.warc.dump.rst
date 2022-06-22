@@ -19,7 +19,7 @@ Options
    Path to output file
 
 **--overwrite** [default: false]
-   Allow overwriting existing files.
+   Allow overwriting existing files
 
 <*input*>
    Path to WARC file

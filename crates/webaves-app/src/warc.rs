@@ -13,15 +13,29 @@ use webaves::{
 
 use crate::argutil::{MultiInput, OutputStream};
 
+const ABOUT: &str = "Process WARC files.";
+const ABOUT_LONG: &str = "Read, manipulate, or write WARC files";
+const DUMP_ABOUT: &str = "Transform WARC files to JSON formatted output";
+const LIST_ABOUT: &str = "Listing of file contents using header fields";
+const LOAD_ABOUT: &str = "Transform JSON formatted input to WARC file";
+const INPUT_WARC_FILE_HELP: &str = "Path to WARC file";
+const INPUT_JSON_FILE_HELP: &str = "Path to JSON file";
+const OUTPUT_FILE_HELP: &str = "Path to output file";
+const OUTPUT_WARC_FILE_HELP: &str = "Path to output WARC file";
+const OVERWRITE_HELP: &str = "Allow overwriting existing files";
+const OUTPUT_COMPRESSION_FORMAT_HELP: &str = "Apply compression to the output";
+const OUTPUT_AS_JSON_HELP: &str = "Format the output as JSON";
+const SHOW_FIELD_WITH_NAME_HELP: &str = "Show values with the given field name";
+
 pub fn create_command() -> Command<'static> {
     let dump_command = Command::new("dump")
-        .about("Transform WARC files to JSON formatted output")
+        .about(DUMP_ABOUT)
         .arg(
             Arg::new("input")
                 .required(true)
                 .multiple_values(true)
                 .value_parser(clap::value_parser!(PathBuf))
-                .help("Path to WARC file"),
+                .help(INPUT_WARC_FILE_HELP),
         )
         .arg(
             Arg::new("output")
@@ -30,22 +44,22 @@ pub fn create_command() -> Command<'static> {
                 .takes_value(true)
                 .default_value("-")
                 .value_parser(clap::value_parser!(PathBuf))
-                .help("Path to output file"),
+                .help(OUTPUT_FILE_HELP),
         )
         .arg(
             Arg::new("overwrite")
                 .long("overwrite")
                 .action(ArgAction::SetTrue)
-                .help("Allow overwriting existing files."),
+                .help(OVERWRITE_HELP),
         );
     let list_command = Command::new("list")
-        .about("Listing of file contents using header fields")
+        .about(LIST_ABOUT)
         .arg(
             Arg::new("input")
                 .required(true)
                 .multiple_values(true)
                 .value_parser(clap::value_parser!(PathBuf))
-                .help("Path to WARC file"),
+                .help(INPUT_WARC_FILE_HELP),
         )
         .arg(
             Arg::new("output")
@@ -54,7 +68,7 @@ pub fn create_command() -> Command<'static> {
                 .takes_value(true)
                 .default_value("-")
                 .value_parser(clap::value_parser!(PathBuf))
-                .help("Path to output file"),
+                .help(OUTPUT_FILE_HELP),
         )
         .arg(
             Arg::new("name")
@@ -68,30 +82,30 @@ pub fn create_command() -> Command<'static> {
                     "Content-Length",
                     "WARC-Target-URI",
                 ])
-                .help("Show values with the given field name"),
+                .help(SHOW_FIELD_WITH_NAME_HELP),
         )
         .arg(
             Arg::new("json")
                 .long("json")
                 .action(ArgAction::SetTrue)
-                .help("Format at the output as JSON"),
+                .help(OUTPUT_AS_JSON_HELP),
         );
 
     let load_command = Command::new("load")
-        .about("Transform JSON formatted input to WARC file")
+        .about(LOAD_ABOUT)
         .arg(
             Arg::new("input")
                 .required(true)
                 .multiple_values(true)
                 .value_parser(clap::value_parser!(PathBuf))
-                .help("Path to JSON file"),
+                .help(INPUT_JSON_FILE_HELP),
         )
         .arg(
             Arg::new("compression_format")
                 .long("compress")
                 .value_parser(["none", "gzip", "zstd"])
                 .default_value("none")
-                .help("Apply compression to the output."),
+                .help(OUTPUT_COMPRESSION_FORMAT_HELP),
         )
         .arg(
             Arg::new("output")
@@ -100,18 +114,18 @@ pub fn create_command() -> Command<'static> {
                 .takes_value(true)
                 .default_value("-")
                 .value_parser(clap::value_parser!(PathBuf))
-                .help("Path to output WARC"),
+                .help(OUTPUT_WARC_FILE_HELP),
         )
         .arg(
             Arg::new("overwrite")
                 .long("overwrite")
                 .action(ArgAction::SetTrue)
-                .help("Allow overwriting existing files."),
+                .help(OVERWRITE_HELP),
         );
 
     Command::new("warc")
-        .about("Process WARC files.")
-        .long_about("Read or manipulate WARC files")
+        .about(ABOUT)
+        .long_about(ABOUT_LONG)
         .subcommand_required(true)
         .subcommand(dump_command)
         .subcommand(list_command)

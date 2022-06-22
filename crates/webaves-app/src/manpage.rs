@@ -5,6 +5,7 @@ use std::collections::HashMap;
 use clap::Command;
 
 mod argutil;
+mod common;
 mod dns_lookup;
 mod echo;
 mod logging;

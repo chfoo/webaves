@@ -22,7 +22,7 @@ Options
    Show values with the given field name
 
 **--json** [default: false]
-   Format at the output as JSON
+   Format the output as JSON
 
 <*input*>
    Path to WARC file

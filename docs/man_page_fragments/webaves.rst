@@ -23,16 +23,20 @@ Options
    Set the level of severity of logging messages
 
 **--verbose** [default: false]
-   Print informative and progress messages
+   Print informative messages such as progress bars or status updates.
+   The log level is also adjusted to "info" if not set.
 
 **--log-filter**
    Filter level of severity and targets of logging messages
 
 **--log-file**
-   Write logging messages to a file.
+   Write logging messages to a file
 
 **--log-format** [default: default]
-   Format of logging messages
+   Format of logging messages.
+
+By default, logging output is formatted for human consumption. For
+processing, JSON formatted output can be specified instead.
 
 Subcommands
 ===========

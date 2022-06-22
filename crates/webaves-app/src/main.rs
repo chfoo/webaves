@@ -1,6 +1,7 @@
 use anyhow::Context;
 
 mod argutil;
+mod common;
 mod dns_lookup;
 mod echo;
 mod logging;

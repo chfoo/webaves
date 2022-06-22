@@ -19,16 +19,18 @@ Print version information
 Set the level of severity of logging messages
 .TP
 \fB\-\-verbose\fR [default: false]
-Print informative and progress messages
+Print informative messages such as progress bars or status updates. The log level is also adjusted to "info" if not set.
 .TP
 \fB\-\-log\-filter\fR
 Filter level of severity and targets of logging messages
 .TP
 \fB\-\-log\-file\fR
-Write logging messages to a file.
+Write logging messages to a file
 .TP
 \fB\-\-log\-format\fR [default: default]
-Format of logging messages
+Format of logging messages.
+
+By default, logging output is formatted for human consumption. For processing, JSON formatted output can be specified instead.
 .SH SUBCOMMANDS
 .TP
 webaves\-dns\-lookup(1)

@@ -6,7 +6,7 @@ Synopsis
 Description
 ===========
 
-Read or manipulate WARC files
+Read, manipulate, or write WARC files
 
 Options
 =======

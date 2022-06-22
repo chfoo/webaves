@@ -16,13 +16,13 @@ Options
    Print help information
 
 **--compress** [default: none]
-   Apply compression to the output.
+   Apply compression to the output
 
 **-o**, **--output** [default: -]
-   Path to output WARC
+   Path to output WARC file
 
 **--overwrite** [default: false]
-   Allow overwriting existing files.
+   Allow overwriting existing files
 
 <*input*>
    Path to JSON file

@@ -10,6 +10,19 @@ use clap::{Arg, ArgAction, ArgMatches, Command};
 use indicatif::ProgressBar;
 use tracing_subscriber::{prelude::*, EnvFilter};
 
+const LOG_LEVEL_HELP: &str = "Set the level of severity of logging messages";
+const VERBOSE_HELP: &str = "Print informative messages";
+const VERBOSE_HELP_LONG: &str = "Print informative messages such as \
+progress bars or status updates. \
+The log level is also adjusted to \"info\" if not set.";
+const LOG_FILTER_HELP: &str = "Filter level of severity and targets of logging messages";
+const LOG_FILE_HELP: &str = "Write logging messages to a file";
+const LOG_FORMAT_HELP: &str = "Format of logging messages";
+const LOG_FORMAT_HELP_LONG: &str = "Format of logging messages.
+
+By default, logging output is formatted for human consumption. \
+For processing, JSON formatted output can be specified instead.";
+
 lazy_static::lazy_static! {
     static ref PROGRESS_BAR: RwLock<Option<ProgressBar>> =RwLock::new(None);
 }
@@ -63,34 +76,36 @@ pub fn logging_args(command: Command) -> Command {
                 .value_parser(["error", "warn", "info", "debug", "trace"])
                 .default_value("warn")
                 .default_value_if("verbose", None, Some("info"))
-                .help("Set the level of severity of logging messages"),
+                .help(LOG_LEVEL_HELP),
         )
         .arg(
             Arg::new("verbose")
                 .long("verbose")
                 .action(ArgAction::SetTrue)
-                .help("Print informative and progress messages"),
+                .help(VERBOSE_HELP)
+                .help(VERBOSE_HELP_LONG),
         )
         .arg(
             Arg::new("log_filter")
                 .long("log-filter")
                 .conflicts_with("log_level")
                 .takes_value(true)
-                .help("Filter level of severity and targets of logging messages"),
+                .help(LOG_FILTER_HELP),
         )
         .arg(
             Arg::new("log_file")
                 .long("log-file")
                 .takes_value(true)
                 .value_parser(clap::value_parser!(PathBuf))
-                .help("Write logging messages to a file."),
+                .help(LOG_FILE_HELP),
         )
         .arg(
             Arg::new("log_format")
                 .long("log-format")
                 .value_parser(["default", "json"])
                 .default_value("default")
-                .help("Format of logging messages"),
+                .help(LOG_FORMAT_HELP)
+                .long_help(LOG_FORMAT_HELP_LONG),
         )
 }
 
