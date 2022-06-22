@@ -11,13 +11,12 @@
 //! are allowed to hold potentially malformed or invalid character sequences.
 mod parse;
 
-use std::{fmt::Display, io::Write, ops::Index};
+use std::{collections::VecDeque, fmt::Display, io::Write, ops::Index};
 
-use nom::error::VerboseError;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use crate::string::StringLosslessExt;
+use crate::{nomutil::NomParseError, string::StringLosslessExt};
 
 /// Multimap of name-value fields.
 ///
@@ -112,6 +111,35 @@ impl HeaderMap {
         self.pairs
             .retain(|pair| pair.name.normalized != name.normalized);
         self.pairs.push(FieldPair::new(name, value.into()));
+    }
+
+    /// Moves the fields to the front of the list order.
+    ///
+    /// Some servers may sensitive to fields such as "Host" or "Date" being
+    /// the first field, so this function provides a way to easily move
+    /// them to the front.
+    pub fn reorder_front(&mut self, name: &str) {
+        let name = name.to_ascii_lowercase();
+        let mut input_pairs = VecDeque::from(std::mem::take(&mut self.pairs));
+        let mut high_priority = VecDeque::new();
+        let mut low_priority = VecDeque::new();
+
+        self.pairs.reserve(input_pairs.len());
+
+        while let Some(pair) = input_pairs.pop_front() {
+            if name == pair.name.normalized {
+                high_priority.push_back(pair);
+            } else {
+                low_priority.push_back(pair);
+            }
+        }
+
+        while let Some(pair) = high_priority.pop_front() {
+            self.pairs.push(pair);
+        }
+        while let Some(pair) = low_priority.pop_front() {
+            self.pairs.push(pair);
+        }
     }
 }
 
@@ -675,25 +703,18 @@ impl Default for HeaderFormatter {
 
 /// Error during parsing indicating malformed or invalid character sequences.
 #[derive(Debug, Error)]
-pub struct ParseError {
-    offset: u64,
-    message: String,
-    // source: Option<Box<dyn std::error::Error>>,
-}
+pub struct ParseError(NomParseError);
 
 impl ParseError {
     /// Offset where the final error occurred in the input.
     pub fn offset(&self) -> u64 {
-        self.offset
+        self.0.offset()
     }
 }
 
 impl Display for ParseError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(format_args!(
-            "parse error at offset {}: {}",
-            self.offset, self.message
-        ))
+        self.0.fmt(f)
     }
 }
 
@@ -718,11 +739,8 @@ impl HeaderParser {
     /// - Characters in encoded-word (RFC2047) encoding are decoded
     ///   if possible, otherwise unchanged.
     pub fn parse_header(&self, input: &[u8]) -> Result<HeaderMap, ParseError> {
-        self::parse::parse(input).map_err(|error| ParseError {
-            offset: get_parse_error_offset(input, &error),
-            message: get_parse_error_message(&error),
-            // source: Some(Box::new(error)),
-        })
+        self::parse::parse(input)
+            .map_err(|error| ParseError(NomParseError::from_nom(input, &error)))
     }
 }
 
@@ -730,40 +748,6 @@ impl Default for HeaderParser {
     fn default() -> Self {
         Self::new()
     }
-}
-
-fn get_parse_error_offset(input: &[u8], error: &nom::Err<VerboseError<&[u8]>>) -> u64 {
-    match error {
-        nom::Err::Incomplete(_) => input.len() as u64,
-        nom::Err::Error(error) => get_error_offset_from_list(input, &error.errors),
-        nom::Err::Failure(error) => get_error_offset_from_list(input, &error.errors),
-    }
-}
-
-fn get_error_offset_from_list(
-    input: &[u8],
-    errors: &[(&[u8], nom::error::VerboseErrorKind)],
-) -> u64 {
-    (input.len() - errors.first().map(|e| e.0.len()).unwrap_or_default()) as u64
-}
-
-fn get_parse_error_message(error: &nom::Err<VerboseError<&[u8]>>) -> String {
-    match error {
-        nom::Err::Incomplete(_error) => "incomplete".to_string(),
-        nom::Err::Error(error) => get_parse_error_kind_message(&error.errors),
-        nom::Err::Failure(error) => get_parse_error_kind_message(&error.errors),
-    }
-}
-
-fn get_parse_error_kind_message(errors: &[(&[u8], nom::error::VerboseErrorKind)]) -> String {
-    errors
-        .first()
-        .map(|e| match e.1 {
-            nom::error::VerboseErrorKind::Context(error) => error.to_string(),
-            nom::error::VerboseErrorKind::Char(c) => format!("expected char {}", c),
-            nom::error::VerboseErrorKind::Nom(error) => error.description().to_string(),
-        })
-        .unwrap_or_default()
 }
 
 #[cfg(test)]
@@ -1019,5 +1003,24 @@ mod tests {
         formatter.disable_validation(true);
         formatter.format_header(&map, &mut buf).unwrap();
         assert_eq!(buf, b"k1: v1\n\r\n");
+    }
+
+    #[test]
+    fn test_reorder_front() {
+        let mut map = HeaderMap::new();
+
+        map.insert("k1", "v1");
+        map.insert("Host", "example.com");
+        map.append("Host", "example.net");
+        map.reorder_front("host");
+
+        let list = map
+            .iter()
+            .map(|pair| (pair.name.text.as_str(), pair.value.text.as_str()))
+            .collect::<Vec<(&str, &str)>>();
+
+        assert_eq!(list[0], ("Host", "example.com"));
+        assert_eq!(list[1], ("Host", "example.net"));
+        assert_eq!(list[2], ("k1", "v1"));
     }
 }
