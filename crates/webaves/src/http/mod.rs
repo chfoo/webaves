@@ -1,7 +1,12 @@
 mod header;
-mod parse;
+mod pc;
+mod request;
+mod response;
+mod util;
 
 pub use header::*;
+pub use request::*;
+pub use response::*;
 
 use thiserror::Error;
 

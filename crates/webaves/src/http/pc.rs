@@ -11,7 +11,7 @@ use nom::{
     IResult, ParseTo,
 };
 
-use super::HeaderByteExt;
+use super::util::HeaderByteExt;
 
 pub struct RequestLine<'a> {
     pub method: &'a [u8],
