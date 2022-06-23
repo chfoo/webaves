@@ -5,10 +5,11 @@ use serde::{Deserialize, Serialize};
 use crate::{
     header::{HeaderFormatter, HeaderMap, HeaderParser},
     nomutil::NomParseError,
-    string::StringLosslessExt,
+    stringesc::StringLosslessExt,
+    stringutil::CharClassExt,
 };
 
-use super::{util::HeaderByteExt, HTTPError, Version, DEFAULT_VERSION};
+use super::{HTTPError, Version, DEFAULT_VERSION};
 
 /// Represents a start line for a response.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -57,12 +58,7 @@ impl StatusLine {
     }
 
     fn validate(&self) -> Result<(), HTTPError> {
-        if !self
-            .reason_phrase
-            .as_bytes()
-            .iter()
-            .all(|c| b"\t ".contains(c) || c.is_ascii_graphic() || c.is_obs_text())
-        {
+        if !self.reason_phrase.as_bytes().iter().all(|c| c.is_text_ws()) {
             Err(HTTPError::InvalidStartLine { source: None })
         } else {
             Ok(())

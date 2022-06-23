@@ -2,9 +2,9 @@ use std::{fmt::Display, io::Write};
 
 use thiserror::Error;
 
-use crate::string::StringLosslessExt;
+use crate::{stringesc::StringLosslessExt, stringutil::CharClassExt};
 
-use super::{FieldName, FieldPair, FieldValue, HeaderByteExt, HeaderMap};
+use super::{FieldName, FieldPair, FieldValue, HeaderMap};
 
 /// Represents an error that may occur during formatting of a [HeaderMap].
 #[derive(Error, Debug)]

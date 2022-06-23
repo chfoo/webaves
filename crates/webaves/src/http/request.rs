@@ -6,10 +6,11 @@ use url::Url;
 use crate::{
     header::{HeaderFormatter, HeaderMap, HeaderParser},
     nomutil::NomParseError,
-    string::StringLosslessExt,
+    stringesc::StringLosslessExt,
+    stringutil::CharClassExt,
 };
 
-use super::{util::HeaderByteExt, HTTPError, Version, DEFAULT_VERSION};
+use super::{HTTPError, Version, DEFAULT_VERSION};
 
 /// Represents a start line for a request.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]

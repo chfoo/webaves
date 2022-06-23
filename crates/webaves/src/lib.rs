@@ -9,6 +9,7 @@ pub mod http;
 mod nomutil;
 pub mod service;
 mod stream;
-pub mod string;
+pub mod stringesc;
+pub mod stringutil;
 pub mod uuid;
 pub mod warc;

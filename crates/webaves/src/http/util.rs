@@ -1,22 +1,3 @@
-/// Additional character classes.
-pub trait HeaderByteExt {
-    /// Returns whether the octet is valid as a "token" character.
-    fn is_token(&self) -> bool;
-
-    /// Returns whether the octet is classified as "obs-text".
-    fn is_obs_text(&self) -> bool;
-}
-
-impl HeaderByteExt for u8 {
-    fn is_token(&self) -> bool {
-        self.is_ascii_alphanumeric() || b"!#$%&'*+-.^_`|~".contains(self)
-    }
-
-    fn is_obs_text(&self) -> bool {
-        *self >= 0x80
-    }
-}
-
 pub fn cut_start_line(buf: &[u8]) -> (&[u8], &[u8]) {
     let index = buf
         .iter()

@@ -22,7 +22,7 @@ use std::{collections::VecDeque, fmt::Display, ops::Index};
 
 use serde::{Deserialize, Serialize};
 
-use crate::string::StringLosslessExt;
+use crate::{stringesc::StringLosslessExt, stringutil::CharClassExt};
 
 /// Multimap of name-value fields.
 ///

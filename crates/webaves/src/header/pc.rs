@@ -9,9 +9,9 @@ use nom::{
     FindSubstring, IResult,
 };
 
-use crate::string::StringLosslessExt;
+use crate::{stringesc::StringLosslessExt, stringutil::CharClassExt};
 
-use super::{FieldName, FieldPair, FieldValue, HeaderByteExt, HeaderMap};
+use super::{FieldName, FieldPair, FieldValue, HeaderMap};
 
 struct ModifiedInput<'a> {
     original: &'a [u8],
