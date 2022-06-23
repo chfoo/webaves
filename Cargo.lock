@@ -1753,6 +1753,7 @@ dependencies = [
  "idna",
  "matches",
  "percent-encoding",
+ "serde",
 ]
 
 [[package]]
@@ -1868,7 +1869,6 @@ dependencies = [
  "env_logger",
  "flate2",
  "fslock",
- "http",
  "mx3",
  "nom 7.1.1",
  "percent-encoding",
@@ -1884,6 +1884,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "trust-dns-resolver",
+ "url",
  "utf-8",
  "uuid",
  "whoami",

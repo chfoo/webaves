@@ -15,7 +15,6 @@ chrono = "0.4"
 dirs = "4.0"
 flate2 = "1.0"
 fslock = "0.2"
-http = "0.2"
 mx3 = "0.2"
 nom = "7.1"
 percent-encoding = "2.1"
@@ -29,6 +28,7 @@ tokio-serde = { version = "0.8", features = ["bincode"] }
 tokio-util = "0.6"
 tracing = "0.1"
 trust-dns-resolver = { version = "0.21", features = ["dns-over-https-rustls"] }
+url = { version = "2.2", features = ["serde"] }
 utf-8 = "0.7"
 uuid = { version = "1.1", features = ["serde"] }
 whoami = "1.2"
