@@ -1,3 +1,4 @@
+//! HTTP parsing, connection handling, client and server.
 mod header;
 mod pc;
 mod request;
@@ -10,7 +11,7 @@ pub use response::*;
 
 use thiserror::Error;
 
-/// Errors during parsing or formatting of WARC files.
+/// Errors during HTTP parsing, formatting, or processing protocol state.
 #[derive(Error, Debug)]
 pub enum HTTPError {
     /// Unexpected end of data.
@@ -20,6 +21,7 @@ pub enum HTTPError {
     /// Invalid or malformed start line (request line or status line).
     #[error("invalid start line")]
     InvalidStartLine {
+        /// Source of the error.
         #[source]
         source: Option<Box<dyn std::error::Error + Send + Sync>>,
     },

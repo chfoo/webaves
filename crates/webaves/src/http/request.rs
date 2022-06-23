@@ -11,14 +11,19 @@ use crate::{
 
 use super::{util::HeaderByteExt, HTTPError, Version, DEFAULT_VERSION};
 
+/// Represents a start line for a request.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct RequestLine {
+    /// Method name such as "GET" or "POST".
     pub method: String,
+    /// The request-target.
     pub target: String,
+    /// HTTP version.
     pub version: Version,
 }
 
 impl RequestLine {
+    /// Creates a `RequestLine` with the given values and default version.
     pub fn new(method: String, target: String) -> Self {
         Self {
             method,
@@ -27,7 +32,7 @@ impl RequestLine {
         }
     }
 
-    pub fn parse_from(input: &[u8]) -> Result<Self, HTTPError> {
+    fn parse_from(input: &[u8]) -> Result<Self, HTTPError> {
         match super::pc::parse_request_line(input) {
             Ok(line) => Ok(Self {
                 method: String::from_utf8_lossless(line.method),
@@ -40,12 +45,12 @@ impl RequestLine {
         }
     }
 
-    pub fn format<W: Write>(&self, mut dest: W) -> Result<(), HTTPError> {
+    fn format<W: Write>(&self, mut dest: W) -> Result<(), HTTPError> {
         self.validate()?;
 
         write!(
             &mut dest,
-            "{} {} HTTP/{}.{}",
+            "{} {} HTTP/{}.{}\r\n",
             self.method, self.target, self.version.0, self.version.1
         )?;
         Ok(())
@@ -89,13 +94,17 @@ pub enum RequestTarget {
     Asterisk,
 }
 
+/// Represents the complete HTTP request header.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct RequestHeader {
+    /// Request line.
     pub request_line: RequestLine,
+    /// Name-value fields.
     pub fields: HeaderMap,
 }
 
 impl RequestHeader {
+    /// Creates a `RequestHeader` with the given values, default version, and empty fields.
     pub fn new<M: Into<String>, T: Into<String>>(method: M, target: T) -> Self {
         Self {
             request_line: RequestLine::new(method.into(), target.into()),
@@ -103,10 +112,13 @@ impl RequestHeader {
         }
     }
 
+    /// Parses bytes into a new `RequestHeader`.
+    ///
+    /// The given buffer must not contain the CRLF that separates the fields
+    /// and message body.
     pub fn parse_from(buf: &[u8]) -> Result<Self, HTTPError> {
-        let (line, remain) = super::util::cut_start_line(buf);
+        let (line, field_buf) = super::util::cut_start_line(buf);
         let request_line = RequestLine::parse_from(line)?;
-        let field_buf = super::util::trim_trailing_newline(remain);
         let field_parser = HeaderParser::new();
 
         match field_parser.parse_header(field_buf) {
@@ -120,9 +132,12 @@ impl RequestHeader {
         }
     }
 
+    /// Formats the header suitable network data exchange.
+    ///
+    /// The output is appended to `dest`. The output does not include the
+    /// CRLF that separates the fields and message body.
     pub fn format<W: Write>(&self, mut dest: W) -> Result<(), HTTPError> {
         self.request_line.format(&mut dest)?;
-        dest.write_all(b"\r\n")?;
 
         let mut header_formatter = HeaderFormatter::new();
         header_formatter.use_raw(true);
@@ -132,8 +147,6 @@ impl RequestHeader {
                 source: Some(Box::new(error)),
             })?;
 
-        dest.write_all(b"\r\n")?;
-
         Ok(())
     }
 }
@@ -141,8 +154,8 @@ impl RequestHeader {
 impl Display for RequestHeader {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.request_line.fmt(f)?;
-        self.fields.fmt(f)?;
-        f.write_str("\r\n")
+        f.write_str("\r\n")?;
+        self.fields.fmt(f)
     }
 }
 
@@ -175,7 +188,7 @@ mod tests {
 
     #[test]
     fn test_parse_request() {
-        let input = "GET /index.html HTTP/1.0\r\nk1: v1\r\n\r\n";
+        let input = "GET /index.html HTTP/1.0\r\nk1: v1\r\n";
         let request = RequestHeader::parse_from(input.as_bytes()).unwrap();
 
         assert_eq!(request.request_line.method, "GET");
@@ -192,6 +205,6 @@ mod tests {
 
         request.format(&mut buf).unwrap();
 
-        assert_eq!(buf, b"POST /api/create HTTP/1.1\r\nk1: v1\r\n\r\n");
+        assert_eq!(buf, b"POST /api/create HTTP/1.1\r\nk1: v1\r\n");
     }
 }

@@ -10,14 +10,20 @@ use crate::{
 
 use super::{util::HeaderByteExt, HTTPError, Version, DEFAULT_VERSION};
 
+/// Represents a start line for a response.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct StatusLine {
+    /// HTTP version.
     pub version: Version,
+    /// Status code.
     pub status_code: u16,
+    /// Reason phrase.
     pub reason_phrase: String,
 }
 
 impl StatusLine {
+    /// Creates a new `StatusLine` with the given status code, default version,
+    /// and empty reason phrase.
     pub fn new(status_code: u16) -> Self {
         Self {
             version: DEFAULT_VERSION,
@@ -26,7 +32,7 @@ impl StatusLine {
         }
     }
 
-    pub fn parse_from(input: &[u8]) -> Result<Self, HTTPError> {
+    fn parse_from(input: &[u8]) -> Result<Self, HTTPError> {
         match super::pc::parse_status_line(input) {
             Ok(line) => Ok(Self {
                 version: line.http_version,
@@ -39,12 +45,12 @@ impl StatusLine {
         }
     }
 
-    pub fn format<W: Write>(&self, mut dest: W) -> Result<(), HTTPError> {
+    fn format<W: Write>(&self, mut dest: W) -> Result<(), HTTPError> {
         self.validate()?;
 
         write!(
             &mut dest,
-            "HTTP/{}.{} {:03} {}",
+            "HTTP/{}.{} {:03} {}\r\n",
             self.version.0, self.version.1, self.status_code, self.reason_phrase
         )?;
         Ok(())
@@ -81,13 +87,17 @@ impl Display for StatusLine {
     }
 }
 
+/// Represents the complete HTTP response header.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct ResponseHeader {
+    /// Status line.
     pub status_line: StatusLine,
+    /// Name-value fields.
     pub fields: HeaderMap,
 }
 
 impl ResponseHeader {
+    /// Creates a `ResponseHeader` with the given status code, default version, and empty fields.
     pub fn new(status_code: u16) -> Self {
         Self {
             status_line: StatusLine::new(status_code),
@@ -95,10 +105,13 @@ impl ResponseHeader {
         }
     }
 
+    /// Parses bytes into a new `ResponseHeader`.
+    ///
+    /// The given buffer must not contain the CRLF that separates the fields
+    /// and message body.
     pub fn parse_from(buf: &[u8]) -> Result<Self, HTTPError> {
-        let (line, remain) = super::util::cut_start_line(buf);
+        let (line, field_buf) = super::util::cut_start_line(buf);
         let status_line = StatusLine::parse_from(line)?;
-        let field_buf = super::util::trim_trailing_newline(remain);
         let field_parser = HeaderParser::new();
 
         match field_parser.parse_header(field_buf) {
@@ -112,9 +125,12 @@ impl ResponseHeader {
         }
     }
 
+    /// Formats the header suitable network data exchange.
+    ///
+    /// The output is appended to `dest`. The output does not include the
+    /// CRLF that separates the fields and message body.
     pub fn format<W: Write>(&self, mut dest: W) -> Result<(), HTTPError> {
         self.status_line.format(&mut dest)?;
-        dest.write_all(b"\r\n")?;
 
         let mut header_formatter = HeaderFormatter::new();
         header_formatter.use_raw(true);
@@ -123,8 +139,6 @@ impl ResponseHeader {
             .map_err(|error| HTTPError::MalformedHeader {
                 source: Some(Box::new(error)),
             })?;
-
-        dest.write_all(b"\r\n")?;
 
         Ok(())
     }
@@ -143,14 +157,26 @@ mod tests {
     use super::*;
 
     #[test]
-    #[ignore = "todo"]
     fn test_parse_response() {
-        todo!()
+        let input = b"HTTP/1.0 200 OK\r\nk1: v1\r\n";
+        let response = ResponseHeader::parse_from(input).unwrap();
+
+        assert_eq!(response.status_line.version, (1, 0));
+        assert_eq!(response.status_line.status_code, 200);
+        assert_eq!(response.status_line.reason_phrase, "OK");
+        assert_eq!(response.fields.get_str("k1"), Some("v1"));
     }
 
     #[test]
-    #[ignore = "todo"]
     fn test_format_response() {
-        todo!()
+        let mut response = ResponseHeader::new(200);
+        response.fields.insert("k1", "v1");
+        response.status_line.reason_phrase = "OK".to_string();
+
+        let mut buf = Vec::new();
+
+        response.format(&mut buf).unwrap();
+
+        assert_eq!(buf, b"HTTP/1.1 200 OK\r\nk1: v1\r\n");
     }
 }

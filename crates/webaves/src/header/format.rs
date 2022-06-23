@@ -93,7 +93,7 @@ impl HeaderFormatter {
     ///
     /// This should only be true if header fields are constructed from sources
     /// that use [StringLosslessExt::from_utf8_lossless]. These include
-    /// [HeaderParser] or manually from `From<&[u8]>`/`From<Vec<u8>>`.
+    /// [super::HeaderParser] or manually from `From<&[u8]>`/`From<Vec<u8>>`.
     ///
     /// Default is false.
     pub fn lossless_scheme(&mut self, value: bool) -> &mut Self {
@@ -106,7 +106,7 @@ impl HeaderFormatter {
     /// When true, if a name or value field's `raw` member is not None, it will
     /// be used instead of the `text` member.
     ///
-    /// Sources such as [HeaderParser] include decoded text values that may
+    /// Sources such as [super::HeaderParser] include decoded text values that may
     /// significantly differ than the raw value.
     ///
     /// Default is false.

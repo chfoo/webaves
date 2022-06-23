@@ -3,7 +3,7 @@ use nom::{
     bytes::complete::{tag, tag_no_case, take_till, take_till1, take_while1},
     character::{
         complete::{digit1, line_ending, space1},
-        is_newline, is_space,
+        is_space,
     },
     combinator::{map, map_opt},
     error::{ParseError, VerboseError},
@@ -92,7 +92,7 @@ fn reason_phrase<'a, E>(input: &'a [u8]) -> IResult<&'a [u8], &'a [u8], E>
 where
     E: ParseError<&'a [u8]>,
 {
-    take_till(is_newline)(input)
+    take_till(|c: u8| c.is_ascii_control())(input)
 }
 
 fn request_line<'a, E>(input: &'a [u8]) -> IResult<&'a [u8], RequestLine, E>
