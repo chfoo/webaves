@@ -9,7 +9,7 @@ use nom::{
     FindSubstring, IResult,
 };
 
-use crate::{stringesc::StringLosslessExt, stringutil::CharClassExt};
+use crate::{stringesc::StringLosslessExt};
 
 use super::{FieldName, FieldPair, FieldValue, HeaderMap};
 
@@ -30,20 +30,11 @@ where
     is_not(b"\"\\".as_slice())(input)
 }
 
-fn quoted_string_escaped_parse_utf8<'a, E>(input: &'a [u8]) -> IResult<&'a [u8], &'a [u8], E>
-where
-    E: ParseError<&'a [u8]>,
-{
-    let count = input.get(0).cloned().unwrap_or(0).sequence_length().min(1);
-
-    take(count)(input)
-}
-
 fn quoted_string_escaped<'a, E>(input: &'a [u8]) -> IResult<&'a [u8], &'a [u8], E>
 where
     E: ParseError<&'a [u8]>,
 {
-    preceded(tag(b"\\"), quoted_string_escaped_parse_utf8)(input)
+    preceded(tag(b"\\"), take(1usize))(input)
 }
 
 fn quoted_string_body<'a, E>(input: &'a [u8]) -> IResult<&'a [u8], QuotedStringBodyFragment, E>
