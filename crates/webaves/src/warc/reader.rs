@@ -13,13 +13,13 @@ use super::WARCError;
 /// Decompression is handled automatically by [Decompressor].
 pub struct WARCReader<'a, S: Read> {
     stream: Option<BufReader<Decompressor<'a, S>>>,
+    header_limit: u64,
 
     state: ReaderState,
 
     file_offset: u64,
 
     magic_bytes_buffer: Vec<u8>,
-    line_buffer: Vec<u8>,
     header_buffer: Vec<u8>,
 
     record_id: String,
@@ -32,9 +32,9 @@ impl<'a, S: Read> WARCReader<'a, S> {
     pub fn new(stream: S) -> Result<Self, WARCError> {
         Ok(Self {
             stream: Some(BufReader::new(Decompressor::new_allow_unknown(stream)?)),
+            header_limit: 16_777_216,
             state: ReaderState::StartOfHeader,
             magic_bytes_buffer: Vec::new(),
-            line_buffer: Vec::new(),
             header_buffer: Vec::new(),
             file_offset: 0,
             record_id: String::new(),
@@ -47,7 +47,7 @@ impl<'a, S: Read> WARCReader<'a, S> {
     ///
     /// Panics if the reader is in the middle of reading a record.
     pub fn into_inner(self) -> S {
-       self.stream.unwrap().into_inner().into_inner()
+        self.stream.unwrap().into_inner().into_inner()
     }
 
     /// Creates a `WARCReader` with the given input stream.
@@ -65,9 +65,9 @@ impl<'a, S: Read> WARCReader<'a, S> {
     pub fn begin_record(&mut self) -> Result<Option<HeaderMetadata>, WARCError> {
         assert!(self.state == ReaderState::StartOfHeader);
 
-        let stream = self.stream.as_ref().unwrap().get_ref();
+        let decompressor_stream = self.stream.as_ref().unwrap().get_ref();
         let start_file_offset = self.file_offset;
-        let raw_file_offset = stream.raw_input_read_count();
+        let raw_file_offset = decompressor_stream.raw_input_read_count();
 
         tracing::debug!(
             file_offset = self.file_offset,
@@ -129,17 +129,9 @@ impl<'a, S: Read> WARCReader<'a, S> {
         self.header_buffer.clear();
         let stream = self.stream.as_mut().unwrap();
 
-        loop {
-            self.line_buffer.clear();
-            stream.read_until(b'\n', &mut self.line_buffer)?;
-            self.file_offset += self.line_buffer.len() as u64;
-
-            if self.line_buffer.is_empty() || b"\r\n".contains(&self.line_buffer[0]) {
-                break;
-            }
-
-            self.header_buffer.extend_from_slice(&self.line_buffer)
-        }
+        let amount =
+            crate::header::read_until_boundary(stream, &mut self.header_buffer, self.header_limit)?;
+        self.file_offset += amount;
 
         Ok(())
     }
@@ -147,7 +139,9 @@ impl<'a, S: Read> WARCReader<'a, S> {
     fn parse_header_lines(&mut self) -> Result<HeaderMap, WARCError> {
         tracing::debug!("parse_header_lines");
 
-        match HeaderParser::new().parse_header(&self.header_buffer) {
+        match HeaderParser::new()
+            .parse_header(crate::header::trim_trailing_crlf(&self.header_buffer))
+        {
             Ok(header_map) => Ok(header_map),
             Err(error) => Err(WARCError::MalformedHeader {
                 offset: self.file_offset,
@@ -235,16 +229,17 @@ impl<'a, S: Read> WARCReader<'a, S> {
         tracing::debug!("read_end_of_record_lines");
 
         let stream = self.stream.as_mut().unwrap();
+        let mut stream = stream.take(self.header_limit);
 
         self.header_buffer.clear();
 
         for _ in 0..2 {
-            self.line_buffer.clear();
-            stream.read_until(b'\n', &mut self.line_buffer)?;
-            self.file_offset += self.line_buffer.len() as u64;
-            self.header_buffer.extend_from_slice(&self.line_buffer);
+            let buf_position = self.header_buffer.len();
+            let amount = stream.read_until(b'\n', &mut self.header_buffer)?;
+            self.file_offset += amount as u64;
+            let line = &self.header_buffer[buf_position..];
 
-            if self.line_buffer.is_empty() || !b"\r\n".contains(&self.line_buffer[0]) {
+            if line.is_empty() || !b"\r\n".contains(&line[0]) {
                 return Err(WARCError::MalformedFooter {
                     offset: self.file_offset,
                 });
