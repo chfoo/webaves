@@ -135,13 +135,13 @@ impl MultiInput {
         })
     }
 
-    pub fn next_file(&mut self) -> anyhow::Result<Option<InputStream>> {
+    pub fn next_file(&mut self) -> anyhow::Result<Option<(PathBuf,InputStream)>> {
         match self.pending_paths.pop_front() {
             Some(path) => {
                 tracing::info!(?path, "reading file");
                 let file = InputStream::open(&path)
                     .with_context(|| format!("failed to open file {path:?}"))?;
-                Ok(Some(file))
+                Ok(Some((path,file)))
             }
             None => Ok(None),
         }
