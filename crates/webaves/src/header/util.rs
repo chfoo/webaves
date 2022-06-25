@@ -82,27 +82,6 @@ where
     Ok(total_amount)
 }
 
-/// Trims the trailing CRLF or LF.
-///
-/// Example:
-///
-/// ```rust
-/// # use webaves::header::trim_trailing_crlf;
-/// assert_eq!(trim_trailing_crlf(b"abc\r\n\r\n"), b"abc\r\n");
-/// assert_eq!(trim_trailing_crlf(b"abc\r\n"), b"abc");
-/// assert_eq!(trim_trailing_crlf(b"abc\n\n"), b"abc\n");
-/// assert_eq!(trim_trailing_crlf(b"abc\n"), b"abc");
-/// ```
-pub fn trim_trailing_crlf(buf: &[u8]) -> &[u8] {
-    if buf.ends_with(b"\r\n") {
-        &buf[0..buf.len() - 2]
-    } else if buf.ends_with(b"\n") {
-        &buf[0..buf.len() - 1]
-    } else {
-        buf
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use std::io::Cursor;
@@ -191,13 +170,5 @@ mod tests {
         let result = read_async_until_boundary(&mut input, &mut output, 7).await;
 
         assert!(result.is_err());
-    }
-
-    #[test]
-    fn text_trim_trailing_crlf() {
-        assert_eq!(trim_trailing_crlf(b"abc\r\n\r\n"), b"abc\r\n");
-        assert_eq!(trim_trailing_crlf(b"abc\r\n"), b"abc");
-        assert_eq!(trim_trailing_crlf(b"abc\n\n"), b"abc\n");
-        assert_eq!(trim_trailing_crlf(b"abc\n"), b"abc");
     }
 }

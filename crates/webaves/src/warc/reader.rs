@@ -141,7 +141,7 @@ impl<'a, S: Read> WARCReader<'a, S> {
         tracing::debug!("parse_header_lines");
 
         match HeaderParser::new()
-            .parse_header(crate::header::trim_trailing_crlf(&self.header_buffer))
+            .parse_header(crate::stringutil::trim_trailing_crlf(&self.header_buffer))
         {
             Ok(header_map) => Ok(header_map),
             Err(error) => Err(WARCError::MalformedHeader {

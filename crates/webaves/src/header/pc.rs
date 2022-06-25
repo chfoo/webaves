@@ -1,99 +1,19 @@
 use nom::{
     branch::alt,
-    bytes::complete::{is_not, tag, take, take_until, take_while, take_while1},
+    bytes::complete::{is_not, tag, take, take_until},
     character::complete::{line_ending, space1},
-    combinator::{all_consuming, map, verify},
+    combinator::{all_consuming, map},
     error::{ParseError, VerboseError},
     multi::{fold_many0, many0},
-    sequence::{delimited, pair, preceded, separated_pair, terminated, tuple},
+    sequence::{delimited, pair, separated_pair, terminated, tuple},
     FindSubstring, IResult,
 };
-
-use crate::{stringesc::StringLosslessExt, stringutil::CharClassExt};
 
 use super::{FieldName, FieldPair, FieldValue, HeaderMap};
 
 struct ModifiedInput<'a> {
     original: &'a [u8],
     modified: Vec<u8>,
-}
-
-enum QuotedStringBodyFragment<'a> {
-    Literal(&'a [u8]),
-    Escaped(&'a [u8]),
-}
-
-fn quoted_string_literal<'a, E>(input: &'a [u8]) -> IResult<&'a [u8], &'a [u8], E>
-where
-    E: ParseError<&'a [u8]>,
-{
-    take_while1(|c: u8| c.is_text_ws() && !b"\"\\".contains(&c))(input)
-}
-
-fn quoted_pair_octet<'a, E>(input: &'a [u8]) -> IResult<&'a [u8], &'a [u8], E>
-where
-    E: ParseError<&'a [u8]>,
-{
-    verify(take(1usize), |bytes: &[u8]| bytes[0].is_text_ws())(input)
-}
-
-fn quoted_string_escaped<'a, E>(input: &'a [u8]) -> IResult<&'a [u8], &'a [u8], E>
-where
-    E: ParseError<&'a [u8]>,
-{
-    preceded(tag(b"\\"), quoted_pair_octet)(input)
-}
-
-fn quoted_string_body<'a, E>(input: &'a [u8]) -> IResult<&'a [u8], QuotedStringBodyFragment, E>
-where
-    E: ParseError<&'a [u8]>,
-{
-    alt((
-        map(quoted_string_escaped, QuotedStringBodyFragment::Escaped),
-        map(quoted_string_literal, QuotedStringBodyFragment::Literal),
-    ))(input)
-}
-
-fn quoted_string<'a, E>(input: &'a [u8]) -> IResult<&'a [u8], Vec<u8>, E>
-where
-    E: ParseError<&'a [u8]>,
-{
-    let build_string = fold_many0(quoted_string_body, Vec::new, |mut buf, fragment| {
-        match fragment {
-            QuotedStringBodyFragment::Literal(v) => buf.extend_from_slice(v),
-            QuotedStringBodyFragment::Escaped(v) => buf.extend_from_slice(v),
-        }
-
-        buf
-    });
-
-    delimited(tag(b"\""), build_string, tag(b"\""))(input)
-}
-
-fn parameter_name<'a, E>(input: &'a [u8]) -> IResult<&'a [u8], &'a [u8], E>
-where
-    E: ParseError<&'a [u8]>,
-{
-    take_until("=")(input)
-}
-
-fn parameter_value<'a, E>(input: &'a [u8]) -> IResult<&'a [u8], Vec<u8>, E>
-where
-    E: ParseError<&'a [u8]>,
-{
-    alt((
-        quoted_string,
-        map(take_while(|c: u8| c.is_token()), |item: &[u8]| {
-            item.to_vec()
-        }),
-    ))(input)
-}
-
-fn parameter<'a, E>(input: &'a [u8]) -> IResult<&'a [u8], (&'a [u8], Vec<u8>), E>
-where
-    E: ParseError<&'a [u8]>,
-{
-    separated_pair(parameter_name, tag("="), parameter_value)(input)
 }
 
 fn quoted_string_body_unchanged<'a, E>(input: &'a [u8]) -> IResult<&'a [u8], &'a [u8], E>
@@ -247,11 +167,11 @@ where
     map(
         separated_pair(field_name, tag(b":"), field_value),
         |items| {
-            let name = transform_to_string(items.0);
+            let name = crate::stringutil::decode_and_trim_to_string(items.0);
             let name_raw = items.0;
             let field_name = FieldName::new(name, Some(name_raw.to_vec()));
 
-            let value = transform_to_string(&items.1.modified);
+            let value = crate::stringutil::decode_and_trim_to_string(&items.1.modified);
             let value_raw = items.1.original;
             let field_value = FieldValue::new(value, Some(value_raw.to_vec()));
 
@@ -273,35 +193,6 @@ pub fn parse_fields(input: &[u8]) -> Result<HeaderMap, nom::Err<VerboseError<&[u
     let headers = HeaderMap { pairs };
 
     Ok(headers)
-}
-
-fn transform_to_string(input: &[u8]) -> String {
-    let text = String::from_utf8_lossless(input);
-    trim(text)
-}
-
-fn trim(text: String) -> String {
-    let trimmed = text.trim();
-
-    if trimmed.len() != text.len() {
-        trimmed.to_string()
-    } else {
-        text
-    }
-}
-
-pub fn parse_quoted_string(input: &[u8]) -> Result<String, nom::Err<VerboseError<&[u8]>>> {
-    let output = quoted_string::<VerboseError<&[u8]>>(input)?;
-    Ok(String::from_utf8_lossless(&output.1))
-}
-
-pub fn parse_parameter(input: &[u8]) -> Result<(String, String), nom::Err<VerboseError<&[u8]>>> {
-    let output = parameter::<VerboseError<&[u8]>>(input)?;
-    let pair = output.1;
-    Ok((
-        transform_to_string(pair.0),
-        String::from_utf8_lossless(&pair.1),
-    ))
 }
 
 #[cfg(test)]
@@ -359,37 +250,5 @@ mod tests {
         let headers = result.unwrap();
 
         assert_eq!(headers.get_str("k1"), Some("[a / aa]"));
-    }
-
-    #[test]
-    fn test_quoted_string() {
-        let data = b"\"\"";
-        let result = parse_quoted_string(data).unwrap();
-        assert_eq!(result, "");
-
-        let data = b"\"Hello world!\"";
-        let result = parse_quoted_string(data).unwrap();
-        assert_eq!(result, "Hello world!");
-
-        let data = b"\" \\\" \"";
-        let result = parse_quoted_string(data).unwrap();
-        assert_eq!(result, " \" ");
-
-        let data = b"\" \\\xF0\x9F\x98\x80 \"";
-        let result = parse_quoted_string(data).unwrap();
-        assert_eq!(result, " 😀 ");
-    }
-
-    #[test]
-    fn test_parameter() {
-        let data = b"k1=v1";
-        let result = parse_parameter(data).unwrap();
-        assert_eq!(result.0, "k1");
-        assert_eq!(result.1, "v1");
-
-        let data = b"k1=\"hello world!\"";
-        let result = parse_parameter(data).unwrap();
-        assert_eq!(result.0, "k1");
-        assert_eq!(result.1, "hello world!");
     }
 }

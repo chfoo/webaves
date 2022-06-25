@@ -1,5 +1,7 @@
 //! Various string and character tools.
 
+use crate::stringesc::StringLosslessExt;
+
 /// Additional character classes.
 pub trait CharClassExt {
     /// Returns whether the octet is valid as a "token" character.
@@ -79,6 +81,49 @@ impl CharClassExt for u8 {
     }
 }
 
+/// Decodes a string from UTF-8 bytes and trims it.
+///
+/// This is a convenience function to perform the steps:
+///
+/// 1. `input` is decoded from UTF-8 using [crate::stringesc::StringLosslessExt].
+/// 2. Whitespace is trimmed.
+pub fn decode_and_trim_to_string(input: &[u8]) -> String {
+    let text = String::from_utf8_lossless(input);
+    trim(text)
+}
+
+/// Transform string into trimmed string.
+fn trim(text: String) -> String {
+    let trimmed = text.trim();
+
+    if trimmed.len() != text.len() {
+        trimmed.to_string()
+    } else {
+        text
+    }
+}
+
+/// Trims the trailing CRLF or LF.
+///
+/// Example:
+///
+/// ```rust
+/// # use webaves::header::trim_trailing_crlf;
+/// assert_eq!(trim_trailing_crlf(b"abc\r\n\r\n"), b"abc\r\n");
+/// assert_eq!(trim_trailing_crlf(b"abc\r\n"), b"abc");
+/// assert_eq!(trim_trailing_crlf(b"abc\n\n"), b"abc\n");
+/// assert_eq!(trim_trailing_crlf(b"abc\n"), b"abc");
+/// ```
+pub fn trim_trailing_crlf(buf: &[u8]) -> &[u8] {
+    if buf.ends_with(b"\r\n") {
+        &buf[0..buf.len() - 2]
+    } else if buf.ends_with(b"\n") {
+        &buf[0..buf.len() - 1]
+    } else {
+        buf
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -106,5 +151,13 @@ mod tests {
         assert_eq!(b'\xE3'.sequence_length(), 3);
         assert_eq!(b'\xF0'.sequence_length(), 4);
         assert_eq!(b'\xFF'.sequence_length(), 0);
+    }
+
+    #[test]
+    fn text_trim_trailing_crlf() {
+        assert_eq!(trim_trailing_crlf(b"abc\r\n\r\n"), b"abc\r\n");
+        assert_eq!(trim_trailing_crlf(b"abc\r\n"), b"abc");
+        assert_eq!(trim_trailing_crlf(b"abc\n\n"), b"abc\n");
+        assert_eq!(trim_trailing_crlf(b"abc\n"), b"abc");
     }
 }
