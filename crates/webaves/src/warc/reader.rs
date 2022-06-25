@@ -12,7 +12,7 @@ use super::WARCError;
 ///
 /// Decompression is handled automatically by [Decompressor].
 pub struct WARCReader<'a, S: Read> {
-    stream: Option<BufReader<Decompressor<'a, S>>>,
+    stream: BufReader<Decompressor<'a, S>>,
     header_limit: u64,
 
     state: ReaderState,
@@ -25,13 +25,14 @@ pub struct WARCReader<'a, S: Read> {
     record_id: String,
     block_file_offset: u64,
     block_length: u64,
+    block_bytes_read: u64,
 }
 
 impl<'a, S: Read> WARCReader<'a, S> {
     /// Creates a `WARCReader` with the given input buffered stream.
     pub fn new(stream: S) -> Result<Self, WARCError> {
         Ok(Self {
-            stream: Some(BufReader::new(Decompressor::new_allow_unknown(stream)?)),
+            stream: BufReader::new(Decompressor::new_allow_unknown(stream)?),
             header_limit: 16_777_216,
             state: ReaderState::StartOfHeader,
             magic_bytes_buffer: Vec::new(),
@@ -40,14 +41,13 @@ impl<'a, S: Read> WARCReader<'a, S> {
             record_id: String::new(),
             block_file_offset: 0,
             block_length: 0,
+            block_bytes_read: 0,
         })
     }
 
     /// Returns the wrapped stream.
-    ///
-    /// Panics if the reader is in the middle of reading a record.
     pub fn into_inner(self) -> S {
-        self.stream.unwrap().into_inner().into_inner()
+        self.stream.into_inner().into_inner()
     }
 
     /// Creates a `WARCReader` with the given input stream.
@@ -65,7 +65,7 @@ impl<'a, S: Read> WARCReader<'a, S> {
     pub fn begin_record(&mut self) -> Result<Option<HeaderMetadata>, WARCError> {
         assert!(self.state == ReaderState::StartOfHeader);
 
-        let decompressor_stream = self.stream.as_ref().unwrap().get_ref();
+        let decompressor_stream = self.stream.get_ref();
         let start_file_offset = self.file_offset;
         let raw_file_offset = decompressor_stream.raw_input_read_count();
 
@@ -102,8 +102,6 @@ impl<'a, S: Read> WARCReader<'a, S> {
 
         self.magic_bytes_buffer.clear();
         self.stream
-            .as_mut()
-            .unwrap()
             .read_until(b'\n', &mut self.magic_bytes_buffer)?;
 
         self.file_offset += self.magic_bytes_buffer.len() as u64;
@@ -127,10 +125,12 @@ impl<'a, S: Read> WARCReader<'a, S> {
         tracing::debug!("read_header_lines");
 
         self.header_buffer.clear();
-        let stream = self.stream.as_mut().unwrap();
 
-        let amount =
-            crate::header::read_until_boundary(stream, &mut self.header_buffer, self.header_limit)?;
+        let amount = crate::header::read_until_boundary(
+            &mut self.stream,
+            &mut self.header_buffer,
+            self.header_limit,
+        )?;
         self.file_offset += amount;
 
         Ok(())
@@ -157,6 +157,7 @@ impl<'a, S: Read> WARCReader<'a, S> {
             .to_string();
         self.block_file_offset = self.file_offset;
         self.block_length = header_map.get_parsed_required("Content-Length")?;
+        self.block_bytes_read = 0;
 
         tracing::debug!(
             block_file_offset = self.block_file_offset,
@@ -173,32 +174,27 @@ impl<'a, S: Read> WARCReader<'a, S> {
     /// call [Self::end_record].
     ///
     /// Panics when called out of sequence.
-    pub fn read_block(&mut self) -> BlockReader<'a, S> {
+    pub fn read_block<'b>(&'b mut self) -> BlockReader<'a, 'b, S> {
         assert!(self.state == ReaderState::EndOfHeader);
         tracing::debug!("read_block");
 
-        let stream = self.stream.take().unwrap().take(self.block_length);
+        let stream = self.stream.by_ref().take(self.block_length);
         self.state = ReaderState::InBlock;
 
         BlockReader {
             stream,
-            num_bytes_read: 0,
+            num_bytes_read: &mut self.block_bytes_read,
         }
     }
 
     /// Finish reading a record.
     ///
     /// Panics when called out of sequence.
-    pub fn end_record(
-        &mut self,
-        block_reader: BlockReader<'a, S>,
-    ) -> Result<MiscellaneousData, WARCError> {
+    pub fn end_record(&mut self) -> Result<MiscellaneousData, WARCError> {
         assert!(self.state == ReaderState::InBlock);
         tracing::debug!("end_record");
-        assert!(self.stream.is_none());
 
-        self.stream = Some(block_reader.stream.into_inner());
-        self.file_offset += block_reader.num_bytes_read;
+        self.file_offset += self.block_bytes_read;
 
         self.check_block_length()?;
         self.read_end_of_record_lines()?;
@@ -228,8 +224,7 @@ impl<'a, S: Read> WARCReader<'a, S> {
     fn read_end_of_record_lines(&mut self) -> Result<(), WARCError> {
         tracing::debug!("read_end_of_record_lines");
 
-        let stream = self.stream.as_mut().unwrap();
-        let mut stream = stream.take(self.header_limit);
+        let mut stream = self.stream.by_ref().take(self.header_limit);
 
         self.header_buffer.clear();
 
@@ -258,22 +253,22 @@ enum ReaderState {
 }
 
 /// Reader stream for a record body.
-pub struct BlockReader<'a, S: Read> {
-    stream: Take<BufReader<Decompressor<'a, S>>>,
-    num_bytes_read: u64,
+pub struct BlockReader<'a, 'b, S: Read> {
+    stream: Take<&'b mut BufReader<Decompressor<'a, S>>>,
+    num_bytes_read: &'b mut u64,
 }
 
-impl<'a, S: Read> BlockReader<'a, S> {
+impl<'a, 'b, S: Read> BlockReader<'a, 'b, S> {
     /// Number of bytes read in total from the (compressed) file.
     pub fn raw_file_offset(&self) -> u64 {
         self.stream.get_ref().get_ref().raw_input_read_count()
     }
 }
 
-impl<'a, S: Read> Read for BlockReader<'a, S> {
+impl<'a, 'b, S: Read> Read for BlockReader<'a, 'b, S> {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
         let size = self.stream.read(buf)?;
-        self.num_bytes_read += size as u64;
+        *self.num_bytes_read += size as u64;
         Ok(size)
     }
 }

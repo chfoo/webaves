@@ -36,7 +36,7 @@ fn minimal_warc_read() {
     assert_eq!(block_buf.len(), 10);
     assert_eq!(block_buf, b"\xf0\xf1\xf2\xf3\xf4\xf5\xf6\xf7\xf8\xf9");
 
-    reader.end_record(block_reader).unwrap();
+    reader.end_record().unwrap();
 
     // record 1
     let metadata = reader.begin_record().unwrap().unwrap();
@@ -59,7 +59,7 @@ fn minimal_warc_read() {
         b"\xf0\xf1\xf2\xf3\xf4\xf5\xf6\xf7\xf8\xf9\xfa\xfb\xfc\xfd\xfe\xff"
     );
 
-    reader.end_record(block_reader).unwrap();
+    reader.end_record().unwrap();
 
     // eof
     let result = reader.begin_record().unwrap();

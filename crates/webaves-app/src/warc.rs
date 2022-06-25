@@ -324,7 +324,7 @@ where
                     .set_position(block.raw_file_offset());
             }
 
-            reader.end_record(block)?;
+            reader.end_record()?;
             footer_callback(&mut output)?;
         }
     }
