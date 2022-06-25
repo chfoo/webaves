@@ -6,6 +6,7 @@ pub mod dns;
 pub mod error;
 pub mod header;
 pub mod http;
+pub mod io;
 mod nomutil;
 pub mod service;
 mod stream;

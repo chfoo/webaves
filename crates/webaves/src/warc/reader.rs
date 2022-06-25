@@ -3,6 +3,7 @@ use std::io::{BufRead, BufReader, Read, Take};
 use crate::{
     compress::Decompressor,
     header::{HeaderMap, HeaderParser},
+    io::BufReadMoreExt,
 };
 
 use super::header::HeaderMapExt;
@@ -102,7 +103,7 @@ impl<'a, S: Read> WARCReader<'a, S> {
 
         self.magic_bytes_buffer.clear();
         self.stream
-            .read_until(b'\n', &mut self.magic_bytes_buffer)?;
+            .read_limit_until(b'\n', &mut self.magic_bytes_buffer, self.header_limit)?;
 
         self.file_offset += self.magic_bytes_buffer.len() as u64;
 

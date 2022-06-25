@@ -1,8 +1,8 @@
 /// Reads bytes into `output` until the header boundary has been found.
 ///
 /// This function will read bytes from `input` and appends them to `output`,
-/// stopping when the CRLF separating the fields and message body has been
-/// found. The output will include the CRLF separator.
+/// stopping when the CRLF (or LF) separating the fields and message body has been
+/// found. The output will include the CRLF (or LF) separator.
 ///
 /// Returns the number of bytes read.
 ///
