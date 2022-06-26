@@ -3,6 +3,7 @@ mod header;
 mod pc;
 mod request;
 mod response;
+pub mod chunked;
 mod util;
 
 pub use header::*;
