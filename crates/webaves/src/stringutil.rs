@@ -108,7 +108,7 @@ fn trim(text: String) -> String {
 /// Example:
 ///
 /// ```rust
-/// # use webaves::header::trim_trailing_crlf;
+/// # use webaves::stringutil::trim_trailing_crlf;
 /// assert_eq!(trim_trailing_crlf(b"abc\r\n\r\n"), b"abc\r\n");
 /// assert_eq!(trim_trailing_crlf(b"abc\r\n"), b"abc");
 /// assert_eq!(trim_trailing_crlf(b"abc\n\n"), b"abc\n");

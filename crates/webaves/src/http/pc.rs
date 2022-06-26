@@ -4,7 +4,7 @@ use nom::{
         is_not, tag, tag_no_case, take, take_till, take_till1, take_while, take_while1,
     },
     character::{
-        complete::{digit1, hex_digit1, line_ending, space0, space1},
+        complete::{digit1, hex_digit1, line_ending, space0, space1, not_line_ending},
         is_space,
     },
     combinator::{map, map_opt, verify},
@@ -178,7 +178,7 @@ where
     preceded(tag(b"\\"), quoted_pair_octet)(input)
 }
 
-fn quoted_string_body<'a, E>(input: &'a [u8]) -> IResult<&'a [u8], QuotedStringBodyFragment, E>
+fn quoted_string_text<'a, E>(input: &'a [u8]) -> IResult<&'a [u8], QuotedStringBodyFragment, E>
 where
     E: ParseError<&'a [u8]>,
 {
@@ -192,7 +192,7 @@ fn quoted_string<'a, E>(input: &'a [u8]) -> IResult<&'a [u8], Vec<u8>, E>
 where
     E: ParseError<&'a [u8]>,
 {
-    let build_string = fold_many0(quoted_string_body, Vec::new, |mut buf, fragment| {
+    let build_string = fold_many0(quoted_string_text, Vec::new, |mut buf, fragment| {
         match fragment {
             QuotedStringBodyFragment::Literal(v) => buf.extend_from_slice(v),
             QuotedStringBodyFragment::Escaped(v) => buf.extend_from_slice(v),
@@ -252,7 +252,7 @@ pub fn parse_parameter(input: &[u8]) -> Result<(String, String), nom::Err<Verbos
 
 // ----- \/ chunked transfer coding \/ ------
 
-type ChunkLine = (u64, Vec<ChunkExtPair>);
+type ChunkMetadata = (u64, Vec<ChunkExtPair>);
 type ChunkExtPair = (String, String);
 
 fn chunk_size<'a, E>(input: &'a [u8]) -> IResult<&'a [u8], u64, E>
@@ -305,27 +305,27 @@ where
     many0(chunk_ext)(input)
 }
 
-fn chunk_line<'a, E>(input: &'a [u8]) -> IResult<&'a [u8], (u64, Vec<ChunkExtPair>), E>
+fn chunk_metadata<'a, E>(input: &'a [u8]) -> IResult<&'a [u8], (u64, Vec<ChunkExtPair>), E>
 where
     E: ParseError<&'a [u8]>,
 {
     terminated(pair(chunk_size, chunk_exts), line_ending)(input)
 }
 
-fn chunk_line_fallback<'a, E>(input: &'a [u8]) -> IResult<&'a [u8], u64, E>
+fn chunk_metadata_fallback<'a, E>(input: &'a [u8]) -> IResult<&'a [u8], u64, E>
 where
     E: ParseError<&'a [u8]>,
 {
-    chunk_size(input)
+    terminated(chunk_size, pair(not_line_ending, line_ending))(input)
 }
 
-pub fn parse_chunk_line(input: &[u8]) -> Result<ChunkLine, nom::Err<VerboseError<&[u8]>>> {
-    let result = chunk_line::<VerboseError<&[u8]>>(input)?;
+pub fn parse_chunk_metadata(input: &[u8]) -> Result<ChunkMetadata, nom::Err<VerboseError<&[u8]>>> {
+    let result = chunk_metadata::<VerboseError<&[u8]>>(input)?;
     Ok(result.1)
 }
 
-pub fn parse_chunk_line_fallback(input: &[u8]) -> Result<u64, nom::Err<VerboseError<&[u8]>>> {
-    let result = chunk_line_fallback::<VerboseError<&[u8]>>(input)?;
+pub fn parse_chunk_metadata_fallback(input: &[u8]) -> Result<u64, nom::Err<VerboseError<&[u8]>>> {
+    let result = chunk_metadata_fallback::<VerboseError<&[u8]>>(input)?;
     Ok(result.1)
 }
 
@@ -372,7 +372,7 @@ mod tests {
 
     #[test]
     fn test_parse_chunk_line_simple() {
-        let (size, exts) = parse_chunk_line(b"05\r\n").unwrap();
+        let (size, exts) = parse_chunk_metadata(b"05\r\n").unwrap();
 
         assert_eq!(size, 5);
         assert_eq!(exts.len(), 0);
@@ -380,7 +380,7 @@ mod tests {
 
     #[test]
     fn test_parse_chunk_line_exts() {
-        let (size, exts) = parse_chunk_line(b"05 ; p1 ; p2=v2 ; p3 = \"v3\"\r\n").unwrap();
+        let (size, exts) = parse_chunk_metadata(b"05 ; p1 ; p2=v2 ; p3 = \"v3\"\r\n").unwrap();
 
         assert_eq!(size, 5);
         assert_eq!(exts.len(), 3);
@@ -395,7 +395,7 @@ mod tests {
 
     #[test]
     fn test_parse_chunk_line_fallback() {
-        let size = parse_chunk_line_fallback(b"05 \x00\r\n").unwrap();
+        let size = parse_chunk_metadata_fallback(b"05 \x00\r\n").unwrap();
 
         assert_eq!(size, 5);
     }

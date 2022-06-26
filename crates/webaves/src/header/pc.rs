@@ -16,7 +16,7 @@ struct ModifiedInput<'a> {
     modified: Vec<u8>,
 }
 
-fn quoted_string_body_unchanged<'a, E>(input: &'a [u8]) -> IResult<&'a [u8], &'a [u8], E>
+fn quoted_string_text_unchanged<'a, E>(input: &'a [u8]) -> IResult<&'a [u8], &'a [u8], E>
 where
     E: ParseError<&'a [u8]>,
 {
@@ -30,7 +30,7 @@ fn quoted_string_unchanged<'a, E>(
 where
     E: ParseError<&'a [u8]>,
 {
-    tuple((tag(b"\""), quoted_string_body_unchanged, tag(b"\"")))(input)
+    tuple((tag(b"\""), quoted_string_text_unchanged, tag(b"\"")))(input)
 }
 
 fn encoded_word<'a, E>(input: &'a [u8]) -> IResult<&'a [u8], Vec<u8>, E>
@@ -103,7 +103,7 @@ where
     pair(line_ending, space1)(input)
 }
 
-fn field_value_body<'a, E>(input: &'a [u8]) -> IResult<&'a [u8], FieldValueFragment, E>
+fn field_value_text<'a, E>(input: &'a [u8]) -> IResult<&'a [u8], FieldValueFragment, E>
 where
     E: ParseError<&'a [u8]>,
 {
@@ -122,7 +122,7 @@ where
 {
     let remain_begin = input.len();
 
-    let build_string = fold_many0(field_value_body, Vec::new, |mut buf, fragment| {
+    let result = fold_many0(field_value_text, Vec::new, |mut buf, fragment| {
         match fragment {
             FieldValueFragment::Literal(v) => {
                 buf.extend_from_slice(v);
@@ -141,9 +141,9 @@ where
             FieldValueFragment::EncodedWordSpace(_v) => {}
         }
         buf
-    });
+    })(input);
 
-    match terminated(build_string, line_ending)(input) {
+    match result {
         Ok((remain, output)) => {
             let remain_end = remain.len();
             let consumed_len = remain_begin - remain_end;
@@ -184,7 +184,7 @@ fn field_pairs<'a, E>(input: &'a [u8]) -> IResult<&'a [u8], Vec<FieldPair>, E>
 where
     E: ParseError<&'a [u8]>,
 {
-    all_consuming(many0(field_pair))(input)
+    all_consuming(many0(terminated(field_pair, line_ending)))(input)
 }
 
 pub fn parse_fields(input: &[u8]) -> Result<HeaderMap, nom::Err<VerboseError<&[u8]>>> {
