@@ -85,7 +85,7 @@ fn minimal_warc_write() {
     block_writer
         .write_all(b"\xf0\xf1\xf2\xf3\xf4\xf5\xf6\xf7\xf8\xf9")
         .unwrap();
-    writer.end_record(block_writer).unwrap();
+    writer.end_record().unwrap();
 
     let mut header = HeaderMap::new();
     header.insert("WARC-Type", "resource");
@@ -101,7 +101,7 @@ fn minimal_warc_write() {
     block_writer
         .write_all(b"\xf0\xf1\xf2\xf3\xf4\xf5\xf6\xf7\xf8\xf9\xfa\xfb\xfc\xfd\xfe\xff")
         .unwrap();
-    writer.end_record(block_writer).unwrap();
+    writer.end_record().unwrap();
 
     let output_buf = writer.into_inner();
     let path = [env!("CARGO_MANIFEST_DIR"), "tests/warc_minimal.warc"]

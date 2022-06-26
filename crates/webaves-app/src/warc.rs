@@ -458,7 +458,8 @@ fn handle_load_command(
                 }
                 DumpElementOwned::EndOfRecord => {
                     anyhow::ensure!(block_writer.is_some());
-                    writer.end_record(block_writer.take().unwrap())?;
+                    block_writer = None;
+                    writer.end_record()?;
                 }
             }
 

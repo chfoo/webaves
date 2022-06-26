@@ -31,6 +31,7 @@ pub struct WARCWriter<'a, S: Write> {
 
     record_id: String,
     block_length: u64,
+    block_amount_written: u64,
 }
 
 impl<'a, S: Write> WARCWriter<'a, S> {
@@ -55,6 +56,7 @@ impl<'a, S: Write> WARCWriter<'a, S> {
             header_formatter: HeaderFormatter::new(),
             record_id: String::new(),
             block_length: 0,
+            block_amount_written: 0,
         }
     }
 
@@ -144,6 +146,7 @@ impl<'a, S: Write> WARCWriter<'a, S> {
             .unwrap_or_default()
             .to_string();
         self.block_length = header.get_parsed_required("Content-Length")?;
+        self.block_amount_written = 0;
 
         tracing::debug!(block_length = self.block_length, "prepare_for_block_write");
 
@@ -156,30 +159,30 @@ impl<'a, S: Write> WARCWriter<'a, S> {
     /// The amount of bytes written must match `Content-Length` in the name-value fields.
     ///
     /// Panics when called out of sequence.
-    pub fn write_block(&mut self) -> BlockWriter<'a, S> {
+    pub fn write_block(&mut self) -> BlockWriter<'a, '_, S> {
         assert!(self.state == WriterState::EndOfHeader);
         tracing::debug!("write_block");
 
         self.state = WriterState::InBlock;
 
         BlockWriter {
-            stream: self.compressed_stream.take().unwrap(),
-            num_bytes_written: 0,
+            stream: self.compressed_stream.as_mut().unwrap(),
+            num_bytes_written: &mut self.block_amount_written,
         }
     }
 
     /// Finish writing a record.
     ///
     /// Panics when called out of sequence.
-    pub fn end_record(&mut self, block_writer: BlockWriter<'a, S>) -> Result<(), WARCError> {
+    pub fn end_record(&mut self) -> Result<(), WARCError> {
         assert!(self.state == WriterState::InBlock);
         tracing::debug!("end_record");
         assert!(self.stream.is_none());
-        assert!(self.compressed_stream.is_none());
+        assert!(self.compressed_stream.is_some());
 
-        self.check_block_length(&block_writer)?;
+        self.check_block_length()?;
 
-        let mut stream = block_writer.stream;
+        let mut stream = self.compressed_stream.take().unwrap();
         stream.write_all(b"\r\n\r\n")?;
         let mut stream = stream.finish()?;
         stream.flush()?;
@@ -189,14 +192,14 @@ impl<'a, S: Write> WARCWriter<'a, S> {
         Ok(())
     }
 
-    fn check_block_length(&self, block_writer: &BlockWriter<'a, S>) -> Result<(), WARCError> {
+    fn check_block_length(&self) -> Result<(), WARCError> {
         tracing::debug!(
-            bytes_written = block_writer.num_bytes_written,
+            bytes_written = self.block_amount_written,
             block_length = self.block_length,
             "check_block_length"
         );
 
-        if block_writer.num_bytes_written != self.block_length {
+        if self.block_amount_written != self.block_length {
             return Err(WARCError::WrongBlockLength {
                 record_id: self.record_id.clone(),
             });
@@ -207,15 +210,15 @@ impl<'a, S: Write> WARCWriter<'a, S> {
 }
 
 /// Writer stream for a record body.
-pub struct BlockWriter<'a, S: Write> {
-    stream: Compressor<'a, S>,
-    num_bytes_written: u64,
+pub struct BlockWriter<'a, 'b, S: Write> {
+    stream: &'b mut Compressor<'a, S>,
+    num_bytes_written: &'b mut u64,
 }
 
-impl<'a, S: Write> Write for BlockWriter<'a, S> {
+impl<'a, 'b, S: Write> Write for BlockWriter<'a, 'b, S> {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
         let amount = self.stream.write(buf)?;
-        self.num_bytes_written += amount as u64;
+        *self.num_bytes_written += amount as u64;
         Ok(amount)
     }
 

@@ -1,4 +1,4 @@
-use std::io::{BufRead, BufReader, Read, Take};
+use std::io::{BufReader, Read, Take};
 
 use crate::{
     compress::Decompressor,
@@ -175,7 +175,7 @@ impl<'a, S: Read> WARCReader<'a, S> {
     /// call [Self::end_record].
     ///
     /// Panics when called out of sequence.
-    pub fn read_block<'b>(&'b mut self) -> BlockReader<'a, 'b, S> {
+    pub fn read_block(&mut self) -> BlockReader<'a, '_, S> {
         assert!(self.state == ReaderState::EndOfHeader);
         tracing::debug!("read_block");
 
@@ -231,7 +231,8 @@ impl<'a, S: Read> WARCReader<'a, S> {
 
         for _ in 0..2 {
             let buf_position = self.header_buffer.len();
-            let amount = stream.read_until(b'\n', &mut self.header_buffer)?;
+            let amount =
+                stream.read_limit_until(b'\n', &mut self.header_buffer, self.header_limit)?;
             self.file_offset += amount as u64;
             let line = &self.header_buffer[buf_position..];
 
