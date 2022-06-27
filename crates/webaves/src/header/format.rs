@@ -96,9 +96,8 @@ impl HeaderFormatter {
     /// [super::HeaderParser] or manually from `From<&[u8]>`/`From<Vec<u8>>`.
     ///
     /// Default is false.
-    pub fn lossless_scheme(&mut self, value: bool) -> &mut Self {
+    pub fn set_lossless_scheme(&mut self, value: bool) {
         self.lossless_scheme = value;
-        self
     }
 
     /// Sets whether raw values are used when available.
@@ -110,9 +109,8 @@ impl HeaderFormatter {
     /// significantly differ than the raw value.
     ///
     /// Default is false.
-    pub fn use_raw(&mut self, value: bool) -> &mut Self {
+    pub fn set_use_raw(&mut self, value: bool) {
         self.use_raw = value;
-        self
     }
 
     /// Sets whether invalid character sequences are checked.
@@ -122,9 +120,8 @@ impl HeaderFormatter {
     /// vulnerabilities.
     ///
     /// Default is false.
-    pub fn disable_validation(&mut self, value: bool) -> &mut Self {
+    pub fn set_disable_validation(&mut self, value: bool) {
         self.disable_validation = value;
-        self
     }
 
     /// Format the name-value fields to HTTP-style format.
@@ -262,7 +259,7 @@ mod tests {
 
         let mut buf = Vec::new();
         let mut formatter = HeaderFormatter::new();
-        formatter.lossless_scheme(true);
+        formatter.set_lossless_scheme(true);
 
         formatter.format_header(&map, &mut buf).unwrap();
 
@@ -282,7 +279,7 @@ mod tests {
 
         let mut buf = Vec::new();
         let mut formatter = HeaderFormatter::new();
-        formatter.use_raw(true);
+        formatter.set_use_raw(true);
 
         formatter.format_header(&map, &mut buf).unwrap();
         assert_eq!(buf, b"k1: v1\r\nK2:\tv2\r\n");
@@ -301,7 +298,7 @@ mod tests {
         assert!(result.is_err());
 
         buf.clear();
-        formatter.disable_validation(true);
+        formatter.set_disable_validation(true);
         formatter.format_header(&map, &mut buf).unwrap();
         assert_eq!(buf, b"k1:: v1\r\n");
     }
@@ -319,7 +316,7 @@ mod tests {
         assert!(result.is_err());
 
         buf.clear();
-        formatter.disable_validation(true);
+        formatter.set_disable_validation(true);
         formatter.format_header(&map, &mut buf).unwrap();
         assert_eq!(buf, b"k1: v1\n\r\n");
     }

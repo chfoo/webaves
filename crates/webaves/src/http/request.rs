@@ -141,7 +141,7 @@ impl RequestHeader {
         self.request_line.format(&mut dest)?;
 
         let mut header_formatter = HeaderFormatter::new();
-        header_formatter.use_raw(true);
+        header_formatter.set_use_raw(true);
         header_formatter
             .format_header(&self.fields, &mut dest)
             .map_err(|error| HTTPError::MalformedHeader {
