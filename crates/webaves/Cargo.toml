@@ -11,6 +11,7 @@ publish = false
 
 [dependencies]
 async-trait = "0.1"
+brotli = "3.3"
 chrono = "0.4"
 dirs = "4.0"
 flate2 = "1.0"
