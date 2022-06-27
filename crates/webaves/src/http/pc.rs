@@ -4,12 +4,12 @@ use nom::{
         is_not, tag, tag_no_case, take, take_till, take_till1, take_while, take_while1,
     },
     character::{
-        complete::{digit1, hex_digit1, line_ending, space0, space1, not_line_ending},
+        complete::{digit1, hex_digit1, line_ending, not_line_ending, space0, space1},
         is_space,
     },
     combinator::{map, map_opt, verify},
     error::{ParseError, VerboseError},
-    multi::{fold_many0, many0},
+    multi::{fold_many0, fold_many1, many0},
     sequence::{delimited, pair, preceded, separated_pair, terminated, tuple},
     IResult, ParseTo,
 };
@@ -250,6 +250,51 @@ pub fn parse_parameter(input: &[u8]) -> Result<(String, String), nom::Err<Verbos
     ))
 }
 
+// ----- \/ comma separated list \/ ------
+
+#[allow(clippy::type_complexity)]
+fn comma_list_separator<'a, E>(
+    input: &'a [u8],
+) -> IResult<&'a [u8], (&'a [u8], &'a [u8], &'a [u8]), E>
+where
+    E: ParseError<&'a [u8]>,
+{
+    tuple((space0, tag(","), space0))(input)
+}
+
+fn comma_list_item<'a, E>(input: &'a [u8]) -> IResult<&'a [u8], String, E>
+where
+    E: ParseError<&'a [u8]>,
+{
+    alt((
+        map(token, String::from_utf8_lossless),
+        map(quoted_string, |item| String::from_utf8_lossless(&item)),
+        map(
+            preceded(comma_list_separator, token),
+            String::from_utf8_lossless,
+        ),
+        map(preceded(comma_list_separator, quoted_string), |item| {
+            String::from_utf8_lossless(&item)
+        }),
+    ))(input)
+}
+
+fn comma_list<'a, E>(input: &'a [u8]) -> IResult<&'a [u8], Vec<String>, E>
+where
+    E: ParseError<&'a [u8]>,
+{
+    fold_many1(comma_list_item, Vec::new, |mut acc, item| {
+        acc.push(item);
+        acc
+    })(input)
+}
+
+pub fn parse_comma_list(input: &[u8]) -> Result<Vec<String>, nom::Err<VerboseError<&[u8]>>> {
+    let output = comma_list::<VerboseError<&[u8]>>(input)?;
+
+    Ok(output.1)
+}
+
 // ----- \/ chunked transfer coding \/ ------
 
 type ChunkMetadata = (u64, Vec<ChunkExtPair>);
@@ -331,6 +376,8 @@ pub fn parse_chunk_metadata_fallback(input: &[u8]) -> Result<u64, nom::Err<Verbo
 
 #[cfg(test)]
 mod tests {
+    use crate::http::field::parse_comma_list;
+
     use super::*;
 
     #[test]
@@ -368,6 +415,21 @@ mod tests {
         let result = parse_parameter(data).unwrap();
         assert_eq!(result.0, "k1");
         assert_eq!(result.1, "hello world!");
+    }
+
+    #[test]
+    fn test_comma_list() {
+        let data = b"i1";
+        let result = parse_comma_list(data).unwrap();
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0], "i1");
+
+        let data = b"i1, i2, \"i3 , \"";
+        let result = parse_comma_list(data).unwrap();
+        assert_eq!(result.len(), 3);
+        assert_eq!(result[0], "i1");
+        assert_eq!(result[1], "i2");
+        assert_eq!(result[2], "i3 , ");
     }
 
     #[test]
