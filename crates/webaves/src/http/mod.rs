@@ -76,9 +76,17 @@ pub enum HTTPError {
         source: Option<Box<dyn std::error::Error + Send + Sync>>,
     },
 
-    /// Invalid or malformed sequence in transfer coding.
-    #[error("invalid transfer coding")]
-    InvalidTransferCoding {
+    /// Invalid or malformed sequence in content encoding or transfer coding.
+    #[error("invalid encoding")]
+    InvalidEncoding {
+        /// Source of the error.
+        #[source]
+        source: Option<Box<dyn std::error::Error + Send + Sync>>,
+    },
+
+    /// Feature or condition is not supported by this crate.
+    #[error("not supported")]
+    NotSupported {
         /// Source of the error.
         #[source]
         source: Option<Box<dyn std::error::Error + Send + Sync>>,

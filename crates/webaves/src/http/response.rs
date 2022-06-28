@@ -101,6 +101,16 @@ impl ResponseHeader {
         }
     }
 
+    /// Creates a `ResponseHeader` with version 0.9 and status code 200.
+    pub fn new_09() -> Self {
+        let mut status_line = StatusLine::new(200);
+        status_line.version = (0,9);
+        Self {
+            status_line,
+            fields: HeaderMap::new(),
+        }
+    }
+
     /// Parses bytes into a new `ResponseHeader`.
     ///
     /// The given buffer must not contain the CRLF that separates the fields

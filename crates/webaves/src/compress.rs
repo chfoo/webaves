@@ -170,7 +170,7 @@ impl<'a, S: Read> Decompressor<'a, S> {
             Decoder::DeflateRaw(stream) => stream.get_mut().get_mut().get_mut(),
             Decoder::DeflateZlib(stream) => stream.get_mut().get_mut().get_mut(),
             Decoder::Gzip(stream) => stream.get_mut().get_mut().get_mut(),
-            Decoder::Brotli(stream) => unimplemented!(),
+            Decoder::Brotli(_stream) => unimplemented!(),
             Decoder::Zstd(stream) => stream.get_mut().get_mut().get_mut(),
         }
     }
@@ -344,7 +344,7 @@ impl<'a, S: Write> Compressor<'a, S> {
             Encoder::DeflateRaw(stream) => stream.finish(),
             Encoder::DeflateZlib(stream) => stream.finish(),
             Encoder::Gzip(stream) => stream.finish(),
-            Encoder::Brotli(stream) => {
+            Encoder::Brotli(mut stream) => {
                 stream.flush()?;
                 Ok(stream.into_inner())
             }
