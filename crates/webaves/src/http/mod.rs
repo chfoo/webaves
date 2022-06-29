@@ -2,10 +2,12 @@
 pub mod chunked;
 pub mod field;
 mod pc;
+mod reader;
 mod request;
 mod response;
 mod util;
 
+pub use reader::*;
 pub use request::*;
 pub use response::*;
 

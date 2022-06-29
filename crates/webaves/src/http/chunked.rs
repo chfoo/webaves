@@ -18,7 +18,6 @@ pub struct ChunkedDecoder<R: BufRead> {
     buffer: Vec<u8>,
     buffer_limit: u64,
     chunk_length: u64,
-    // chunk_amount_read: u64,
 }
 
 impl<R> ChunkedDecoder<R>
@@ -64,7 +63,7 @@ where
     ///
     /// Panics if called out of sequence.
     pub fn begin_chunk(&mut self) -> Result<ChunkMetadata, HTTPError> {
-        tracing::debug!("begin_chunk");
+        tracing::trace!("begin_chunk");
         assert!(self.state == DecoderState::StartOfLine);
         self.buffer.clear();
 
@@ -95,7 +94,7 @@ where
     }
 
     fn set_up_chunk_data_reader(&mut self) {
-        tracing::debug!(chunk_length = self.chunk_length, "read_data");
+        tracing::trace!(chunk_length = self.chunk_length, "set_up_chunk_data_reader");
         assert!(self.state == DecoderState::EndOfLine);
 
         self.state = DecoderState::InBody;
@@ -116,7 +115,7 @@ where
     ///
     /// Panics if called out of sequence.
     pub fn end_chunk(&mut self) -> Result<(), HTTPError> {
-        tracing::debug!("end_chunk");
+        tracing::trace!("end_chunk");
         assert!(self.state == DecoderState::InBody);
 
         let data_reader = self.data_reader.take().unwrap();
@@ -138,7 +137,7 @@ where
     }
 
     fn read_chunk_deliminator(&mut self) -> Result<(), HTTPError> {
-        tracing::debug!("read_chunk_deliminator");
+        tracing::trace!("read_chunk_deliminator");
 
         self.buffer.clear();
         self.stream
@@ -155,7 +154,7 @@ where
     ///
     /// Panics if called out of sequence.
     pub fn read_trailer(&mut self) -> Result<HeaderMap, HTTPError> {
-        tracing::debug!("read_trailer");
+        tracing::trace!("read_trailer");
         assert!(self.state == DecoderState::StartOfTrailer);
 
         self.buffer.clear();
@@ -279,13 +278,18 @@ impl<R: BufRead> ChunkedReader<R> {
     }
 
     fn read_metadata(&mut self) -> std::io::Result<()> {
+        tracing::trace!("read_metadata");
+
         let metadata = self.inner.begin_chunk().map_err(Self::remap_error)?;
         self.chunk_size = metadata.length;
+        self.chunk_amount_read = 0;
 
         Ok(())
     }
 
     fn read_0_chunk_and_trailer(&mut self) -> std::io::Result<()> {
+        tracing::trace!("read_0_chunk_and_trailer");
+
         let reader = self.inner.read_data();
         let mut temp = [0u8; 1];
         let _amount = reader.read(&mut temp)?;
@@ -308,9 +312,11 @@ impl<R: BufRead> Read for ChunkedReader<R> {
 
                 if self.chunk_size == 0 {
                     self.read_0_chunk_and_trailer()?;
+                    tracing::trace!("new state Finished");
                     self.state = ChunkedReaderState::Finished;
                     return Ok(0);
                 } else {
+                    tracing::trace!("new state ReadingData");
                     self.state = ChunkedReaderState::ReadingData;
                 }
             };
@@ -321,6 +327,7 @@ impl<R: BufRead> Read for ChunkedReader<R> {
                 self.chunk_amount_read += amount as u64;
 
                 if amount == 0 && self.chunk_amount_read == self.chunk_size {
+                    tracing::trace!("new state Start");
                     self.inner.end_chunk().map_err(Self::remap_error)?;
                     self.state = ChunkedReaderState::Start;
                 } else {
