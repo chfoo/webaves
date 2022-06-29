@@ -16,7 +16,7 @@ use flate2::{
 use zstd::stream::read::Decoder as ZstdDecoder;
 use zstd::stream::write::Encoder as ZstdEncoder;
 
-use crate::stream::{CountBufReader, CountRead, PeekReader};
+use crate::io::{ComboReader, CountRead, PeekRead, SourceCountRead};
 
 /// Specifies a compression or decompression format.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -66,12 +66,12 @@ impl FromStr for CompressionFormat {
 
 #[allow(clippy::large_enum_variant)]
 enum Decoder<'a, S: Read> {
-    Raw(CountBufReader<PeekReader<S>>),
-    DeflateRaw(DeflateDecoder<CountBufReader<PeekReader<S>>>),
-    DeflateZlib(ZlibDecoder<CountBufReader<PeekReader<S>>>),
-    Gzip(MultiGzDecoder<CountBufReader<PeekReader<S>>>),
-    Brotli(BrotliDecoder<CountBufReader<PeekReader<S>>>),
-    Zstd(ZstdDecoder<'a, CountBufReader<PeekReader<S>>>),
+    Raw(ComboReader<S>),
+    DeflateRaw(DeflateDecoder<ComboReader<S>>),
+    DeflateZlib(ZlibDecoder<ComboReader<S>>),
+    Gzip(MultiGzDecoder<ComboReader<S>>),
+    Brotli(BrotliDecoder<ComboReader<S>>),
+    Zstd(ZstdDecoder<'a, ComboReader<S>>),
 }
 
 impl<'a, S: Read> Decoder<'a, S> {
@@ -94,9 +94,8 @@ pub struct Decompressor<'a, S: Read> {
 
 impl<'a, S: Read> Decompressor<'a, S> {
     fn new_impl(stream: S, allow_unknown: bool) -> std::io::Result<Self> {
-        let mut stream = PeekReader::new(stream);
-        let magic_bytes = stream.peek(4)?.to_vec();
-        let stream = CountBufReader::new(stream);
+        let mut stream = ComboReader::new(stream);
+        let magic_bytes = stream.peek_exact(4)?.to_vec();
 
         tracing::debug!(?magic_bytes, "decompressor analysis");
 
@@ -135,8 +134,7 @@ impl<'a, S: Read> Decompressor<'a, S> {
 
     /// Open a compressed file with the given format.
     pub fn new_format(stream: S, format: CompressionFormat) -> std::io::Result<Self> {
-        let stream = PeekReader::new(stream);
-        let stream = CountBufReader::new(stream);
+        let stream = ComboReader::new(stream);
         let decoder = match format {
             CompressionFormat::Raw => Decoder::Raw(stream),
             CompressionFormat::DeflateRaw => Decoder::DeflateRaw(DeflateDecoder::new(stream)),
@@ -152,12 +150,12 @@ impl<'a, S: Read> Decompressor<'a, S> {
     /// Returns a reference to the wrapped stream.
     pub fn get_ref(&self) -> &S {
         match &self.decoder {
-            Decoder::Raw(stream) => stream.get_ref().get_ref(),
-            Decoder::DeflateRaw(stream) => stream.get_ref().get_ref().get_ref(),
-            Decoder::DeflateZlib(stream) => stream.get_ref().get_ref().get_ref(),
-            Decoder::Gzip(stream) => stream.get_ref().get_ref().get_ref(),
-            Decoder::Brotli(stream) => stream.get_ref().get_ref().get_ref(),
-            Decoder::Zstd(stream) => stream.get_ref().get_ref().get_ref(),
+            Decoder::Raw(stream) => stream.get_ref(),
+            Decoder::DeflateRaw(stream) => stream.get_ref().get_ref(),
+            Decoder::DeflateZlib(stream) => stream.get_ref().get_ref(),
+            Decoder::Gzip(stream) => stream.get_ref().get_ref(),
+            Decoder::Brotli(stream) => stream.get_ref().get_ref(),
+            Decoder::Zstd(stream) => stream.get_ref().get_ref(),
         }
     }
 
@@ -166,36 +164,24 @@ impl<'a, S: Read> Decompressor<'a, S> {
     /// Panics on Brotli.
     pub fn get_mut(&mut self) -> &mut S {
         match &mut self.decoder {
-            Decoder::Raw(stream) => stream.get_mut().get_mut(),
-            Decoder::DeflateRaw(stream) => stream.get_mut().get_mut().get_mut(),
-            Decoder::DeflateZlib(stream) => stream.get_mut().get_mut().get_mut(),
-            Decoder::Gzip(stream) => stream.get_mut().get_mut().get_mut(),
+            Decoder::Raw(stream) => stream.get_mut(),
+            Decoder::DeflateRaw(stream) => stream.get_mut().get_mut(),
+            Decoder::DeflateZlib(stream) => stream.get_mut().get_mut(),
+            Decoder::Gzip(stream) => stream.get_mut().get_mut(),
             Decoder::Brotli(_stream) => unimplemented!(),
-            Decoder::Zstd(stream) => stream.get_mut().get_mut().get_mut(),
+            Decoder::Zstd(stream) => stream.get_mut().get_mut(),
         }
     }
 
     /// Returns the wrapped stream.
     pub fn into_inner(self) -> S {
         match self.decoder {
-            Decoder::Raw(stream) => stream.into_inner().into_inner(),
-            Decoder::DeflateRaw(stream) => stream.into_inner().into_inner().into_inner(),
-            Decoder::DeflateZlib(stream) => stream.into_inner().into_inner().into_inner(),
-            Decoder::Gzip(stream) => stream.into_inner().into_inner().into_inner(),
-            Decoder::Brotli(stream) => stream.into_inner().into_inner().into_inner(),
-            Decoder::Zstd(stream) => stream.finish().into_inner().into_inner(),
-        }
-    }
-
-    /// Returns the number of bytes read from the wrapped stream.
-    pub fn raw_input_read_count(&self) -> u64 {
-        match &self.decoder {
-            Decoder::Raw(stream) => stream.read_count(),
-            Decoder::DeflateRaw(stream) => stream.get_ref().read_count(),
-            Decoder::DeflateZlib(stream) => stream.get_ref().read_count(),
-            Decoder::Gzip(stream) => stream.get_ref().read_count(),
-            Decoder::Brotli(stream) => stream.get_ref().read_count(),
-            Decoder::Zstd(stream) => stream.get_ref().read_count(),
+            Decoder::Raw(stream) => stream.into_inner(),
+            Decoder::DeflateRaw(stream) => stream.into_inner().into_inner(),
+            Decoder::DeflateZlib(stream) => stream.into_inner().into_inner(),
+            Decoder::Gzip(stream) => stream.into_inner().into_inner(),
+            Decoder::Brotli(stream) => stream.into_inner().into_inner(),
+            Decoder::Zstd(stream) => stream.finish().into_inner(),
         }
     }
 }
@@ -209,6 +195,19 @@ impl<'a, S: Read> Read for Decompressor<'a, S> {
             Decoder::Gzip(stream) => stream.read(buf),
             Decoder::Brotli(stream) => stream.read(buf),
             Decoder::Zstd(stream) => stream.read(buf),
+        }
+    }
+}
+
+impl<'a, S: Read> SourceCountRead for Decompressor<'a, S> {
+    fn source_read_count(&self) -> u64 {
+        match &self.decoder {
+            Decoder::Raw(stream) => stream.read_count(),
+            Decoder::DeflateRaw(stream) => stream.get_ref().read_count(),
+            Decoder::DeflateZlib(stream) => stream.get_ref().read_count(),
+            Decoder::Gzip(stream) => stream.get_ref().read_count(),
+            Decoder::Brotli(stream) => stream.get_ref().read_count(),
+            Decoder::Zstd(stream) => stream.get_ref().read_count(),
         }
     }
 }

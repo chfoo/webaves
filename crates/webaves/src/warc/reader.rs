@@ -3,7 +3,7 @@ use std::io::{BufReader, Read, Take};
 use crate::{
     compress::Decompressor,
     header::{HeaderMap, HeaderParser},
-    io::BufReadMoreExt,
+    io::{BufReadMoreExt, SourceCountRead},
 };
 
 use super::header::HeaderMapExt;
@@ -68,7 +68,7 @@ impl<'a, S: Read> WARCReader<'a, S> {
 
         let decompressor_stream = self.stream.get_ref();
         let start_file_offset = self.file_offset;
-        let raw_file_offset = decompressor_stream.raw_input_read_count();
+        let raw_file_offset = decompressor_stream.source_read_count();
 
         tracing::debug!(
             file_offset = self.file_offset,
@@ -263,7 +263,7 @@ pub struct BlockReader<'a, 'b, S: Read> {
 impl<'a, 'b, S: Read> BlockReader<'a, 'b, S> {
     /// Number of bytes read in total from the (compressed) file.
     pub fn raw_file_offset(&self) -> u64 {
-        self.stream.get_ref().get_ref().raw_input_read_count()
+        self.stream.get_ref().get_ref().source_read_count()
     }
 }
 
