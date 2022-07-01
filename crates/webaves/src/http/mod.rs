@@ -6,10 +6,12 @@ mod reader;
 mod request;
 mod response;
 mod util;
+mod writer;
 
 pub use reader::*;
 pub use request::*;
 pub use response::*;
+pub use writer::*;
 
 use thiserror::Error;
 

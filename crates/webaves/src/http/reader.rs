@@ -35,7 +35,7 @@ pub struct MessageReader<'a, R: BufRead + PeekRead> {
 }
 
 impl<'a, R: BufRead + PeekRead> MessageReader<'a, R> {
-    /// Creates a new MessageReader with the given stream.
+    /// Creates a new `MessageReader` with the given stream.
     pub fn new(stream: R) -> Self {
         Self {
             stream: Some(stream),
@@ -48,6 +48,30 @@ impl<'a, R: BufRead + PeekRead> MessageReader<'a, R> {
             buffer: Vec::new(),
             content_length: None,
             server_is_modern: false,
+        }
+    }
+
+    /// Returns a reference to the wrapped stream.
+    pub fn get_ref(&self) -> &R {
+        match self.stream.as_ref() {
+            Some(stream) => stream,
+            None => self.body_reader.as_ref().unwrap().get_ref(),
+        }
+    }
+
+    /// Returns a mutable reference to the wrapped stream.
+    pub fn get_mut(&mut self) -> &mut R {
+        match self.stream.as_mut() {
+            Some(stream) => stream,
+            None => self.body_reader.as_mut().unwrap().get_mut(),
+        }
+    }
+
+    /// Returns the wrapped stream.
+    pub fn into_inner(self) -> R {
+        match self.stream {
+            Some(stream) => stream,
+            None => self.body_reader.unwrap().into_inner(),
         }
     }
 
@@ -382,6 +406,22 @@ enum BodyTransportLayer<R: BufRead> {
 }
 
 impl<R: BufRead> BodyTransportLayer<R> {
+    fn get_ref(&self) -> &R {
+        match self {
+            BodyTransportLayer::Chunked(stream) => stream.get_ref(),
+            BodyTransportLayer::Length(stream) => stream.stream.get_ref(),
+            BodyTransportLayer::Legacy(stream) => stream,
+        }
+    }
+
+    fn get_mut(&mut self) -> &mut R {
+        match self {
+            BodyTransportLayer::Chunked(stream) => stream.get_mut(),
+            BodyTransportLayer::Length(stream) => stream.stream.get_mut(),
+            BodyTransportLayer::Legacy(stream) => stream,
+        }
+    }
+
     fn into_inner(self) -> R {
         match self {
             BodyTransportLayer::Chunked(stream) => stream.into_inner(),
@@ -431,6 +471,20 @@ impl<R: BufRead> Read for ExpectedLengthReader<R> {
 /// Reader for a message body.
 pub struct BodyReader<'a, R: BufRead> {
     stream: Decompressor<'a, BodyTransportLayer<R>>,
+}
+
+impl<'a, R: BufRead> BodyReader<'a, R> {
+    fn get_ref(&self) -> &R {
+        self.stream.get_ref().get_ref()
+    }
+
+    fn get_mut(&mut self) -> &mut R {
+        self.stream.get_mut().get_mut()
+    }
+
+    fn into_inner(self) -> R {
+        self.stream.into_inner().into_inner()
+    }
 }
 
 impl<'a, R: BufRead> Read for BodyReader<'a, R> {
