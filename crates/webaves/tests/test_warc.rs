@@ -11,9 +11,9 @@ use webaves::{
 
 #[test_log::test]
 fn minimal_warc_read() {
-    let path = [env!("CARGO_MANIFEST_DIR"), "tests/warc_minimal.warc"]
-        .iter()
-        .collect::<PathBuf>();
+    let path = PathBuf::new()
+        .join(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/data/warc_minimal.warc");
     dbg!(&path);
     let file = File::open(path).unwrap();
     let mut reader = WARCReader::new(file).unwrap();
@@ -104,8 +104,8 @@ fn minimal_warc_write() {
     writer.end_record().unwrap();
 
     let output_buf = writer.into_inner();
-    let path = [env!("CARGO_MANIFEST_DIR"), "tests/warc_minimal.warc"]
-        .iter()
-        .collect::<PathBuf>();
+    let path = PathBuf::new()
+        .join(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/data/warc_minimal.warc");
     assert_eq!(output_buf, std::fs::read(path).unwrap());
 }

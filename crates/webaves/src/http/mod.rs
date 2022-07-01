@@ -55,6 +55,23 @@ impl Default for ChunkedEncodingOption {
     }
 }
 
+/// Specifies the use of HTTP/0.9 responses.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ZeroNineOption {
+    /// Never interpret as 0.9 response.
+    Never,
+    /// Always interpret as 0.9 response.
+    Always,
+    /// Detect from response.
+    Auto,
+}
+
+impl Default for ZeroNineOption {
+    fn default() -> Self {
+        Self::Auto
+    }
+}
+
 /// Errors during HTTP parsing, formatting, or processing protocol state.
 #[derive(Error, Debug)]
 pub enum HTTPError {

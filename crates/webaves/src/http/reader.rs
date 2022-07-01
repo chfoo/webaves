@@ -11,7 +11,7 @@ use crate::{
 
 use super::{
     chunked::ChunkedReader, field::HeaderMapExt, ChunkedEncodingOption, CompressionOption,
-    HTTPError, RequestHeader, ResponseHeader,
+    HTTPError, RequestHeader, ResponseHeader, ZeroNineOption,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -26,10 +26,12 @@ pub struct MessageReader<'a, R: BufRead + PeekRead> {
     body_reader: Option<BodyReader<'a, R>>,
     chunked_encoding: ChunkedEncodingOption,
     compression: CompressionOption,
+    zero_nine: ZeroNineOption,
     header_limit: u64,
     state: ReaderState,
     buffer: Vec<u8>,
     content_length: Option<u64>,
+    server_is_modern: bool,
 }
 
 impl<'a, R: BufRead + PeekRead> MessageReader<'a, R> {
@@ -40,10 +42,12 @@ impl<'a, R: BufRead + PeekRead> MessageReader<'a, R> {
             body_reader: None,
             chunked_encoding: Default::default(),
             compression: Default::default(),
+            zero_nine: Default::default(),
             header_limit: 65536,
             state: ReaderState::Header,
             buffer: Vec::new(),
             content_length: None,
+            server_is_modern: false,
         }
     }
 
@@ -67,6 +71,16 @@ impl<'a, R: BufRead + PeekRead> MessageReader<'a, R> {
     /// Only one compression method is supported.
     pub fn set_compression(&mut self, compression: CompressionOption) {
         self.compression = compression;
+    }
+
+    /// Returns the HTTP/0.9 option for 0.9 responses.
+    pub fn zero_nine(&self) -> ZeroNineOption {
+        self.zero_nine
+    }
+
+    /// Sets the HTTP/0.9 option for 0.9 responses.
+    pub fn set_zero_nine(&mut self, zero_nine: ZeroNineOption) {
+        self.zero_nine = zero_nine;
     }
 
     /// Begins reading a HTTP request and returns the header.
@@ -102,13 +116,18 @@ impl<'a, R: BufRead + PeekRead> MessageReader<'a, R> {
         tracing::debug!("begin_response");
         assert!(self.state == ReaderState::Header);
 
-        let header = if self.check_http_response_magic_bytes()? {
+        let header = if self.check_use_modern_headers()? {
             self.read_header()?;
             ResponseHeader::parse_from(crate::stringutil::trim_trailing_crlf(&self.buffer))?
         } else {
             tracing::debug!("using HTTP/0.9");
             ResponseHeader::new_09()
         };
+
+        if !self.server_is_modern && header.status_line.version.0 >= 1 {
+            tracing::trace!("mark server as modern");
+            self.server_is_modern = true;
+        }
 
         self.set_up_response_body(&header, initiator)?;
         self.state = ReaderState::Body;
@@ -127,26 +146,33 @@ impl<'a, R: BufRead + PeekRead> MessageReader<'a, R> {
         Ok(())
     }
 
-    fn check_http_response_magic_bytes(&mut self) -> Result<bool, HTTPError> {
-        tracing::trace!("check_http_response_magic_bytes");
+    fn check_is_http_header(&mut self) -> Result<bool, HTTPError> {
+        tracing::trace!("check_is_http_header");
 
         let stream = self.stream.as_mut().unwrap();
         let mut buffer = [0u8; 5];
 
         match stream.peek_exact(5) {
             Ok(data) => {
-                tracing::debug!(?data, "check_http_response_magic_bytes");
-
                 buffer.copy_from_slice(data);
                 buffer.make_ascii_lowercase();
 
+                tracing::trace!(?buffer, "check_is_http_header");
                 Ok(buffer.starts_with(b"http/"))
             }
             Err(error) => {
-                tracing::debug!(?error, "check_http_response_magic_bytes");
+                tracing::trace!(?error, "check_is_http_header");
                 Ok(false)
             }
         }
+    }
+
+    fn check_use_modern_headers(&mut self) -> Result<bool, HTTPError> {
+        let is_http_header = self.check_is_http_header()?;
+
+        tracing::trace!("check_http_response_magic_bytes");
+
+        Ok(self.zero_nine == ZeroNineOption::Never || is_http_header || self.server_is_modern)
     }
 
     fn set_up_request_body(&mut self, header: &RequestHeader) -> Result<(), HTTPError> {
@@ -325,9 +351,11 @@ impl<'a, R: BufRead + PeekRead> MessageReader<'a, R> {
     /// [Self::begin_request] or [Self::begin_response] may be called next if
     /// the protocol allows it.
     ///
-    ///
-    ///
     /// Panics when called out of sequence.
+    ///
+    /// If there is remaining data to be read, this reader does not determine
+    /// whether it belongs to the current message. This extra data may be the
+    /// result of an incorrect Content-Length.
     pub fn end_message(&mut self) -> Result<(), HTTPError> {
         tracing::debug!("end_message");
         assert!(self.state == ReaderState::Body);
@@ -344,18 +372,6 @@ impl<'a, R: BufRead + PeekRead> MessageReader<'a, R> {
         self.state = ReaderState::Header;
 
         Ok(())
-    }
-
-    /// Returns whether there has been a possible length mismatch.
-    ///
-    /// When Content-Length has specified and the reader is at EOF,
-    /// this function will return true if the internal buffer is not empty.
-    /// Otherwise, returns false.
-    pub fn has_length_mismatch(&self) -> bool {
-        // if let Some(content_length) = self.content_length {
-        //     self.read_count == content_length && self.stream.get_ref().
-        // }
-        todo!()
     }
 }
 

@@ -1,12 +1,16 @@
-use std::{fs::File, io::Read, path::PathBuf};
+use std::{
+    fs::File,
+    io::{Cursor, Read},
+    path::PathBuf,
+};
 
 use webaves::{http::MessageReader, io::ComboReader};
 
 #[test_log::test]
 fn test_read_requests() {
-    let path = [env!("CARGO_MANIFEST_DIR"), "tests/http_request_minimal"]
-        .iter()
-        .collect::<PathBuf>();
+    let path = PathBuf::new()
+        .join(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/data/http_request_minimal");
 
     let file = File::open(path).unwrap();
     let mut reader = MessageReader::new(ComboReader::new(file));
@@ -43,9 +47,9 @@ fn test_read_requests() {
 
 #[test_log::test]
 fn test_read_responses() {
-    let path = [env!("CARGO_MANIFEST_DIR"), "tests/http_response_minimal"]
-        .iter()
-        .collect::<PathBuf>();
+    let path = PathBuf::new()
+        .join(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/data/http_response_minimal");
 
     let file = File::open(path).unwrap();
     let mut reader = MessageReader::new(ComboReader::new(file));
@@ -85,6 +89,51 @@ fn test_read_responses() {
     body.clear();
     body_reader.read_to_end(&mut body).unwrap();
 
+    assert_eq!(body, b"Hello world!\r\n");
+
+    reader.end_message().unwrap();
+}
+
+#[test_log::test]
+fn test_read_response_gzip() {
+    let path = PathBuf::new()
+        .join(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/data/http_response_gzip");
+    let gzip_path = PathBuf::new()
+        .join(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/data/quick_brown_fox.gz");
+
+    let file = File::open(path).unwrap();
+    let gzip_file = File::open(gzip_path).unwrap();
+    let data = file.take(89).chain(gzip_file);
+
+    let mut reader = MessageReader::new(ComboReader::new(data));
+    let mut body = Vec::new();
+
+    let header = reader.begin_response(None).unwrap();
+    assert_eq!(header.status_line.status_code, 200);
+
+    let body_reader = reader.read_body();
+    body.clear();
+    body_reader.read_to_end(&mut body).unwrap();
+    assert_eq!(body, b"The quick brown fox jumps over the lazy dog.");
+
+    reader.end_message().unwrap();
+}
+
+#[test_log::test]
+fn test_read_response_zero_nine() {
+    let data = Cursor::new(b"Hello world!\r\n");
+
+    let mut reader = MessageReader::new(ComboReader::new(data));
+    let mut body = Vec::new();
+
+    let header = reader.begin_response(None).unwrap();
+    assert_eq!(header.status_line.version, (0, 9));
+
+    let body_reader = reader.read_body();
+    body.clear();
+    body_reader.read_to_end(&mut body).unwrap();
     assert_eq!(body, b"Hello world!\r\n");
 
     reader.end_message().unwrap();
