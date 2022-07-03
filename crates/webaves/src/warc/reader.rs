@@ -89,9 +89,7 @@ impl<'a, S: Read> WARCReader<'a, S> {
             version: String::from_utf8_lossy(&self.magic_bytes_buffer)
                 .trim()
                 .to_string(),
-            version_raw: &self.magic_bytes_buffer,
-            header: header_map,
-            header_raw: &self.header_buffer,
+            fields: header_map,
             block_length: self.block_length,
             file_offset: start_file_offset,
             raw_file_offset,
@@ -175,7 +173,7 @@ impl<'a, S: Read> WARCReader<'a, S> {
     /// call [Self::end_record].
     ///
     /// Panics when called out of sequence.
-    pub fn read_block(&mut self) -> BlockReader<'a, '_, S> {
+    pub fn read_block(&mut self) -> BlockReader<'_, 'a, S> {
         assert!(self.state == ReaderState::EndOfHeader);
         tracing::debug!("read_block");
 
@@ -191,7 +189,7 @@ impl<'a, S: Read> WARCReader<'a, S> {
     /// Finish reading a record.
     ///
     /// Panics when called out of sequence.
-    pub fn end_record(&mut self) -> Result<MiscellaneousData, WARCError> {
+    pub fn end_record(&mut self) -> Result<(), WARCError> {
         assert!(self.state == ReaderState::InBlock);
         tracing::debug!("end_record");
 
@@ -202,9 +200,7 @@ impl<'a, S: Read> WARCReader<'a, S> {
 
         self.state = ReaderState::StartOfHeader;
 
-        Ok(MiscellaneousData {
-            raw: &self.header_buffer,
-        })
+        Ok(())
     }
 
     fn check_block_length(&self) -> Result<(), WARCError> {
@@ -255,19 +251,19 @@ enum ReaderState {
 }
 
 /// Reader stream for a record body.
-pub struct BlockReader<'a, 'b, S: Read> {
-    stream: Take<&'b mut BufReader<Decompressor<'a, S>>>,
-    num_bytes_read: &'b mut u64,
+pub struct BlockReader<'a, 's, S: Read> {
+    stream: Take<&'a mut BufReader<Decompressor<'s, S>>>,
+    num_bytes_read: &'a mut u64,
 }
 
-impl<'a, 'b, S: Read> BlockReader<'a, 'b, S> {
+impl<'a, 's, S: Read> BlockReader<'a, 's, S> {
     /// Number of bytes read in total from the (compressed) file.
     pub fn raw_file_offset(&self) -> u64 {
         self.stream.get_ref().get_ref().source_read_count()
     }
 }
 
-impl<'a, 'b, S: Read> Read for BlockReader<'a, 'b, S> {
+impl<'a, 's, S: Read> Read for BlockReader<'a, 's, S> {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
         let size = self.stream.read(buf)?;
         *self.num_bytes_read += size as u64;
@@ -275,48 +271,25 @@ impl<'a, 'b, S: Read> Read for BlockReader<'a, 'b, S> {
     }
 }
 
-/// Noncritical data.
-pub struct MiscellaneousData<'a> {
-    raw: &'a [u8],
-}
-
-impl<'a> MiscellaneousData<'a> {
-    /// Returns the raw bytes.
-    pub fn raw(&self) -> &[u8] {
-        self.raw
-    }
-}
-
 /// A record's header and associated file metadata.
-pub struct HeaderMetadata<'a> {
+#[derive(Debug, Clone)]
+pub struct HeaderMetadata {
     version: String,
-    version_raw: &'a [u8],
-    header: HeaderMap,
-    header_raw: &'a [u8],
+    fields: HeaderMap,
     block_length: u64,
     file_offset: u64,
     raw_file_offset: u64,
 }
 
-impl<'a> HeaderMetadata<'a> {
+impl HeaderMetadata {
     /// Returns the WARC record version.
     pub fn version(&self) -> &str {
         self.version.as_ref()
     }
 
-    /// Returns the raw bytes of WARC record version.
-    pub fn version_raw(&self) -> &[u8] {
-        self.version_raw
-    }
-
     /// Returns the parsed name-value fields.
-    pub fn header(&self) -> &HeaderMap {
-        &self.header
-    }
-
-    /// Returns the raw bytes of the name-value fields.
-    pub fn header_raw(&self) -> &[u8] {
-        self.header_raw
+    pub fn fields(&self) -> &HeaderMap {
+        &self.fields
     }
 
     /// Returns the length of the body of the record.

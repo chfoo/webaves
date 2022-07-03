@@ -1,4 +1,6 @@
 //! Header field values parsers.
+use std::{collections::HashMap, str::FromStr};
+
 use crate::{error::ParseError, header::HeaderMap, nomutil::NomParseError};
 
 /// Parse a field value formatted as a "parameter".
@@ -50,5 +52,40 @@ impl HeaderMapExt for HeaderMap {
         list.iter_mut().for_each(|item| item.make_ascii_lowercase());
 
         list
+    }
+}
+
+/// Represents the media-type value such as the Content-Type name.
+pub struct MediaType {
+    /// The "type".
+    pub type_: String,
+    /// The "subtype".
+    pub subtype: String,
+    /// The "parameters".
+    pub parameters: HashMap<String, String>,
+}
+
+impl TryFrom<&[u8]> for MediaType {
+    type Error = ParseError;
+
+    fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
+        super::pc::parse_media_type(value)
+            .map(|(type_, subtype, parameters)| {
+                let parameters = HashMap::from_iter(parameters);
+                Self {
+                    type_,
+                    subtype,
+                    parameters,
+                }
+            })
+            .map_err(|error| ParseError(NomParseError::from_nom(value, &error)))
+    }
+}
+
+impl FromStr for MediaType {
+    type Err = ParseError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Self::try_from(s.as_bytes())
     }
 }

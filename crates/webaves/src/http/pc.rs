@@ -211,6 +211,9 @@ pub fn parse_quoted_string(input: &[u8]) -> Result<String, nom::Err<VerboseError
 
 // ----- \/ parameter \/ ------
 
+type ParameterPairRaw<'a> = (&'a [u8], Vec<u8>);
+type ParameterPair = (String, String);
+
 fn parameter_name<'a, E>(input: &'a [u8]) -> IResult<&'a [u8], &'a [u8], E>
 where
     E: ParseError<&'a [u8]>,
@@ -230,7 +233,7 @@ where
     ))(input)
 }
 
-fn parameter<'a, E>(input: &'a [u8]) -> IResult<&'a [u8], (&'a [u8], Vec<u8>), E>
+fn parameter<'a, E>(input: &'a [u8]) -> IResult<&'a [u8], ParameterPairRaw, E>
 where
     E: ParseError<&'a [u8]>,
 {
@@ -248,6 +251,65 @@ pub fn parse_parameter(input: &[u8]) -> Result<(String, String), nom::Err<Verbos
         crate::stringutil::decode_and_trim_to_string(pair.0),
         String::from_utf8_lossless(&pair.1),
     ))
+}
+
+fn parameters<'a, E>(input: &'a [u8]) -> IResult<&'a [u8], Vec<ParameterPairRaw>, E>
+where
+    E: ParseError<&'a [u8]>,
+{
+    many0(map(tuple((space0, tag(";"), space0, parameter)), |item| {
+        item.3
+    }))(input)
+}
+
+// ----- \/ media-type \/ ------
+
+fn type_<'a, E>(input: &'a [u8]) -> IResult<&'a [u8], &'a [u8], E>
+where
+    E: ParseError<&'a [u8]>,
+{
+    token(input)
+}
+
+fn subtype<'a, E>(input: &'a [u8]) -> IResult<&'a [u8], &'a [u8], E>
+where
+    E: ParseError<&'a [u8]>,
+{
+    token(input)
+}
+
+fn media_type<'a, E>(input: &'a [u8]) -> IResult<&'a [u8], (String, String, Vec<ParameterPair>), E>
+where
+    E: ParseError<&'a [u8]>,
+{
+    map(
+        tuple((
+            map(type_, String::from_utf8_lossless),
+            tag("/"),
+            map(subtype, String::from_utf8_lossless),
+            map(parameters, |items| {
+                items
+                    .iter()
+                    .map(|item| {
+                        (
+                            String::from_utf8_lossless(item.0),
+                            String::from_utf8_lossless(&item.1),
+                        )
+                    })
+                    .collect::<Vec<ParameterPair>>()
+            }),
+        )),
+        |item| (item.0, item.2, item.3),
+    )(input)
+}
+
+#[allow(clippy::type_complexity)]
+pub fn parse_media_type(
+    input: &[u8],
+) -> Result<(String, String, Vec<ParameterPair>), nom::Err<VerboseError<&[u8]>>> {
+    let output = media_type::<VerboseError<&[u8]>>(input)?;
+
+    Ok(output.1)
 }
 
 // ----- \/ comma separated list \/ ------
@@ -415,6 +477,21 @@ mod tests {
         let result = parse_parameter(data).unwrap();
         assert_eq!(result.0, "k1");
         assert_eq!(result.1, "hello world!");
+    }
+
+    #[test]
+    fn test_media_type() {
+        let data = b"text/html";
+        let result = parse_media_type(data).unwrap();
+        assert_eq!(result.0, "text");
+        assert_eq!(result.1, "html");
+
+        let data = b"application/http ; msgtype=request";
+        let result = parse_media_type(data).unwrap();
+        assert_eq!(result.0, "application");
+        assert_eq!(result.1, "http");
+        assert_eq!(result.2[0].0, "msgtype");
+        assert_eq!(result.2[0].1, "request");
     }
 
     #[test]

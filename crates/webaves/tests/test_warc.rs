@@ -25,7 +25,7 @@ fn minimal_warc_read() {
     assert_eq!(metadata.file_offset(), 0);
     assert_eq!(metadata.block_length(), 10);
     assert_eq!(
-        metadata.header().get_str("WARC-Record-ID").unwrap(),
+        metadata.fields().get_str("WARC-Record-ID").unwrap(),
         "<urn:uuid:00000001-0002-0003-0004-000000000005>"
     );
 
@@ -45,7 +45,7 @@ fn minimal_warc_read() {
     assert_eq!(metadata.file_offset(), 165);
     assert_eq!(metadata.block_length(), 16);
     assert_eq!(
-        metadata.header().get_str("WARC-Record-ID").unwrap(),
+        metadata.fields().get_str("WARC-Record-ID").unwrap(),
         "<urn:uuid:10000001-0002-0003-0004-000000000005>"
     );
 

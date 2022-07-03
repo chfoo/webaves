@@ -3,6 +3,7 @@
 #![warn(missing_docs)]
 pub mod compress;
 pub mod dns;
+pub mod download;
 pub mod error;
 pub mod header;
 pub mod http;

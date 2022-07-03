@@ -239,7 +239,7 @@ fn default_session_id() -> String {
 fn path_to_session_id(path: &Path) -> String {
     use std::os::unix::ffi::OsStrExt;
 
-    let hash = mx3::hash(path.as_os_str().as_bytes(), 1);
+    let hash = mx3::v3::hash(path.as_os_str().as_bytes(), 1);
 
     format!("{:016x}", hash)
 }

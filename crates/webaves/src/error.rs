@@ -4,11 +4,19 @@ use std::fmt::Display;
 
 use thiserror::Error;
 
-use crate::nomutil::NomParseError;
+use crate::{nomutil::NomParseError, http::HTTPError};
 
 /// General purpose error.
 #[derive(Error, Debug)]
 pub enum Error {
+    /// HTTP error.
+    #[error(transparent)]
+    HTTP(#[from] HTTPError),
+
+    /// Parse error.
+    #[error(transparent)]
+    Parse(#[from] ParseError),
+
     /// IO error.
     #[error(transparent)]
     Io(#[from] std::io::Error),
