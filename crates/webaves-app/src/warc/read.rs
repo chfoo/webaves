@@ -1,12 +1,16 @@
 use std::{
+    cell::RefCell,
     io::{Read, Write},
     path::Path,
+    rc::Rc,
 };
 
 use clap::ArgMatches;
+use digest::DynDigest;
 use webaves::{
+    header::HeaderMap,
     io::SourceCountRead,
-    warc::{HeaderMetadata, WARCReader},
+    warc::{HeaderMapExt, HeaderMetadata, LabelledDigest, WARCReader},
 };
 
 use crate::argutil::{MultiInput, OutputStream};
@@ -113,4 +117,76 @@ pub fn handle_list_command(
         |_output, _buffer, _amount| Ok(()),
         |_output| Ok(()),
     )
+}
+
+struct DigestData {
+    digest: Box<dyn DynDigest>,
+    expected_value: Vec<u8>,
+}
+
+pub fn handle_checksum_command(
+    global_matches: &ArgMatches,
+    sub_matches: &ArgMatches,
+) -> anyhow::Result<()> {
+    let digest_data: Rc<RefCell<Option<DigestData>>> = Rc::new(RefCell::new(None));
+
+    read_warc_files_loop(
+        global_matches,
+        sub_matches,
+        |_input_path, output, metadata| {
+            let record_id = metadata
+                .fields()
+                .get_str("WARC-Record-ID")
+                .unwrap_or_default();
+
+            if let Some((digest, expected_value)) = get_digest_from_header(metadata.fields()) {
+                *digest_data.borrow_mut() = Some(DigestData {
+                    digest,
+                    expected_value,
+                });
+            } else {
+                digest_data.borrow_mut().take();
+            }
+
+            write!(output, "{record_id} ")?;
+
+            Ok(())
+        },
+        |_output, buffer, amount| {
+            if let Some(data) = digest_data.borrow_mut().as_mut() {
+                data.digest.update(&buffer[0..amount]);
+            }
+            Ok(())
+        },
+        |output| {
+            if let Some(data) = digest_data.borrow_mut().take() {
+                let result = data.digest.finalize();
+
+                if result.as_ref() == data.expected_value {
+                    writeln!(output, "ok")?;
+                } else {
+                    writeln!(output, "fail")?;
+                }
+            } else {
+                writeln!(output, "skip")?;
+            }
+
+            Ok(())
+        },
+    )
+}
+
+fn get_digest_from_header(header: &HeaderMap) -> Option<(Box<dyn DynDigest>, Vec<u8>)> {
+    match header.get_parsed::<LabelledDigest>("WARC-Block-Digest") {
+        Ok(labelled_digest) => match labelled_digest {
+            Some(labelled_digest) => {
+                match webaves::crypto::get_hash_function_by_name(&labelled_digest.algorithm) {
+                    Some(digest) => Some((digest, labelled_digest.value)),
+                    None => None,
+                }
+            }
+            None => None,
+        },
+        Err(_) => None,
+    }
 }

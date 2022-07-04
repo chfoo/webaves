@@ -4,7 +4,7 @@ use std::fmt::Display;
 
 use thiserror::Error;
 
-use crate::{nomutil::NomParseError, http::HTTPError};
+use crate::{http::HTTPError, nomutil::NomParseError};
 
 /// General purpose error.
 #[derive(Error, Debug)]
@@ -20,6 +20,14 @@ pub enum Error {
     /// IO error.
     #[error(transparent)]
     Io(#[from] std::io::Error),
+
+    /// Miscellaneous error.
+    #[error("{0}")]
+    Misc(&'static str),
+
+    /// Uncategorized error.
+    #[error(transparent)]
+    Other(Box<dyn std::error::Error + Sync + Send>),
 }
 
 /// Error during parsing indicating malformed or invalid character sequences.
