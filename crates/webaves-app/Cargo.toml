@@ -17,13 +17,14 @@ clap_mangen = { version = "0.1", optional = true }
 console = "0.15"
 csv = "1.1"
 indicatif = "0.17.0-rc.11"
-lazy_static = "1.4.0"
+lazy_static = "1.4"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 tarpc = { version = "0.29", features = ["tokio1", "serde-transport"] }
 tokio = { version = "1.19", features = ["full"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt", "json"] }
+url = "2.2"
 webaves = { version = "0.0", path = "../webaves/" }
 
 [features]

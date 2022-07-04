@@ -243,6 +243,12 @@ impl<'a, S: Read> WARCReader<'a, S> {
     }
 }
 
+impl<'a, S: Read> SourceCountRead for WARCReader<'a, S> {
+    fn source_read_count(&self) -> u64 {
+        self.stream.get_ref().source_read_count()
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ReaderState {
     StartOfHeader,
@@ -256,9 +262,8 @@ pub struct BlockReader<'a, 's, S: Read> {
     num_bytes_read: &'a mut u64,
 }
 
-impl<'a, 's, S: Read> BlockReader<'a, 's, S> {
-    /// Number of bytes read in total from the (compressed) file.
-    pub fn raw_file_offset(&self) -> u64 {
+impl<'a, 's, S: Read> SourceCountRead for BlockReader<'a, 's, S> {
+    fn source_read_count(&self) -> u64 {
         self.stream.get_ref().get_ref().source_read_count()
     }
 }

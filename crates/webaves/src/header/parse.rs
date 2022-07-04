@@ -2,6 +2,7 @@ use crate::nomutil::NomParseError;
 
 use super::HeaderMap;
 
+/// Error occured parsing header.
 pub type ParseError = crate::error::ParseError;
 
 /// Decode header data into structures.

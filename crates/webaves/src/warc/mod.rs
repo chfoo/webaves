@@ -1,4 +1,5 @@
 //! WARC file processing.
+pub mod extract;
 mod header;
 mod reader;
 mod writer;
