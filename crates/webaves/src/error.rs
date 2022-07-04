@@ -39,6 +39,11 @@ impl ParseError {
     pub fn offset(&self) -> u64 {
         self.0.offset()
     }
+
+    /// A segment of the input near where the error occurred.
+    pub fn input(&self) -> &[u8] {
+        self.0.input()
+    }
 }
 
 impl Display for ParseError {

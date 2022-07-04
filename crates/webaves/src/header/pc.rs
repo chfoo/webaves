@@ -66,6 +66,7 @@ where
 }
 
 enum FieldValueFragment<'a> {
+    Raw(&'a [u8]),
     Literal(&'a [u8]),
     FoldedSep((&'a [u8], &'a [u8])),
     Quoted((&'a [u8], &'a [u8], &'a [u8])),
@@ -113,6 +114,7 @@ where
         map(field_value_folded_sep, FieldValueFragment::FoldedSep),
         map(encoded_word_space, FieldValueFragment::EncodedWordSpace),
         map(field_value_literal, FieldValueFragment::Literal),
+        map(is_not("\r\n"), FieldValueFragment::Raw),
     ))(input)
 }
 
@@ -124,6 +126,9 @@ where
 
     let result = fold_many0(field_value_text, Vec::new, |mut buf, fragment| {
         match fragment {
+            FieldValueFragment::Raw(v) => {
+                buf.extend_from_slice(v);
+            }
             FieldValueFragment::Literal(v) => {
                 buf.extend_from_slice(v);
             }
@@ -213,12 +218,13 @@ mod tests {
 
     #[test]
     fn test_empty_value_header() {
-        let data = b"k1:\r\n";
+        let data = b"k1:\r\nk2: \r\n";
         let result = parse_fields(data);
         let headers = result.unwrap();
 
-        assert_eq!(headers.len(), 1);
+        assert_eq!(headers.len(), 2);
         assert_eq!(headers.get_str("k1"), Some(""));
+        assert_eq!(headers.get_str("k2"), Some(""));
     }
 
     #[test]
@@ -241,6 +247,15 @@ mod tests {
         let headers = result.unwrap();
 
         assert_eq!(headers.get_str("k1"), Some("p1=\"v1, \""));
+    }
+
+    #[test]
+    fn test_false_quoted_string_header() {
+        let data = b"k1: a\"b\r\n";
+        let result = parse_fields(data);
+        let headers = result.unwrap();
+
+        assert_eq!(headers.get_str("k1"), Some("a\"b"));
     }
 
     #[test]

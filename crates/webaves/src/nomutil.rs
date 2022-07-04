@@ -7,14 +7,22 @@ use thiserror::Error;
 #[derive(Debug, Error)]
 pub struct NomParseError {
     offset: u64,
+    input: Vec<u8>,
     message: String,
     // source: Option<Box<dyn std::error::Error>>,
 }
 
 impl NomParseError {
     pub fn from_nom(input: &[u8], error: &nom::Err<VerboseError<&[u8]>>) -> Self {
+        let offset = get_parse_error_offset(input, error);
+        let input_min = usize::try_from(((offset as i64) - 8).max(0)).unwrap_or_default();
+        let input_max =
+            usize::try_from(((offset as i64) + 8).min(input.len() as i64)).unwrap_or_default();
+        let input = input[input_min..input_max].to_vec();
+
         Self {
-            offset: get_parse_error_offset(input, error),
+            offset,
+            input,
             message: get_parse_error_message(error),
         }
     }
@@ -23,13 +31,20 @@ impl NomParseError {
     pub fn offset(&self) -> u64 {
         self.offset
     }
+
+    /// A segment of the input near where the error occurred.
+    pub fn input(&self) -> &[u8] {
+        self.input.as_ref()
+    }
 }
 
 impl Display for NomParseError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_fmt(format_args!(
-            "parse error at offset {}: {}",
-            self.offset, self.message
+            "parse error at offset {}, near `{}`: {}",
+            self.offset,
+            String::from_utf8_lossy(&self.input).escape_debug(),
+            self.message
         ))
     }
 }
@@ -38,6 +53,7 @@ impl From<nom::Err<VerboseError<&[u8]>>> for NomParseError {
     fn from(error: nom::Err<VerboseError<&[u8]>>) -> Self {
         NomParseError {
             offset: 0,
+            input: Vec::new(),
             message: crate::nomutil::get_parse_error_message(&error),
         }
     }

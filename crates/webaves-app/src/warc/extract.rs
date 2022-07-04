@@ -62,6 +62,7 @@ fn process_extract_record<'a, 'b, R: Read>(
 
     if extractor.can_accept_any(&metadata) && url.is_some() {
         let url = url.as_ref().unwrap();
+        tracing::debug!(%url, "extractor begin");
         extractor.begin(&metadata)?;
         extract_record_with_extractor(url, output_dir, extractor, progress_bar)?;
     } else {

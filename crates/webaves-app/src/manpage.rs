@@ -28,7 +28,7 @@ fn main() -> anyhow::Result<()> {
         roff_table.insert(key.clone(), render_roff(subcommand)?);
 
         for subsubcommand in subcommand.get_subcommands() {
-            if subcommand.is_hide_set() {
+            if subsubcommand.is_hide_set() {
                 continue;
             }
 

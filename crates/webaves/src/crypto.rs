@@ -14,6 +14,9 @@ pub fn normalize_hash_name<S: Into<String>>(name: S) -> String {
         "sha-224" => {
             name.remove(3);
         }
+        "sha-256" => {
+            name.remove(3);
+        }
         "sha-384" => {
             name.remove(3);
         }

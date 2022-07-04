@@ -161,7 +161,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_labelled_digest() {
+    fn test_labelled_digest_parse() {
         assert_eq!(
             LabelledDigest::from_str("md5:d41d8cd98f00b204e9800998ecf8427e").unwrap(),
             LabelledDigest::new(
@@ -195,9 +195,30 @@ mod tests {
     }
 
     #[test]
-    fn test_labelled_digest_invalid() {
+    fn test_labelled_digest_invalid_parse() {
         assert!(LabelledDigest::from_str("").is_err());
         assert!(LabelledDigest::from_str("a:f").is_err());
         assert!(LabelledDigest::from_str("a:X").is_err());
+    }
+
+    #[test]
+    fn test_labelled_digest_to_string() {
+        assert_eq!(
+            LabelledDigest::new(
+                "md5",
+                b"\xd4\x1d\x8c\xd9\x8f\x00\xb2\x04\xe9\x80\t\x98\xec\xf8B~".as_slice()
+            )
+            .to_string(),
+            "md5:d41d8cd98f00b204e9800998ecf8427e"
+        );
+
+        assert_eq!(
+            LabelledDigest::new(
+                "sha1",
+                b"\xda9\xa3\xee^kK\r2U\xbf\xef\x95`\x18\x90\xaf\xd8\x07\t".as_slice()
+            )
+            .to_string(),
+            "sha1:3I42H3S6NNFQ2MSVX7XZKYAYSCX5QBYJ"
+        );
     }
 }
