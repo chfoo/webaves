@@ -4,7 +4,7 @@
 .SH NAME
 list \- Listing of file contents using header fields
 .SH SYNOPSIS
-\fBlist\fR [\fB\-h\fR|\fB\-\-help\fR] [\fB\-o\fR|\fB\-\-output\fR] [\fB\-\-name\fR] [\fB\-\-json\fR] <\fIinput\fR> 
+\fBlist\fR [\fB\-h\fR|\fB\-\-help\fR] [\fB\-o\fR|\fB\-\-output\fR] [\fB\-\-overwrite\fR] [\fB\-\-name\fR] [\fB\-\-include\-file\fR] [\fB\-\-json\fR] <\fIinput\fR> 
 .SH DESCRIPTION
 Listing of file contents using header fields
 .SH OPTIONS
@@ -15,8 +15,14 @@ Print help information
 \fB\-o\fR, \fB\-\-output\fR [default: \-]
 Path to output file
 .TP
+\fB\-\-overwrite\fR [default: false]
+Allow overwriting existing files
+.TP
 \fB\-\-name\fR [default: WARC\-Date,WARC\-Type,Content\-Type,Content\-Length,WARC\-Target\-URI]
 Show values with the given field name
+.TP
+\fB\-\-include\-file\fR [default: false]
+Include filename and file position
 .TP
 \fB\-\-json\fR [default: false]
 Format the output as JSON

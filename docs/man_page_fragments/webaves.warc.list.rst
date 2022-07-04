@@ -2,7 +2,8 @@ Synopsis
 ========
 
 **list** [**-h**\ \|\ **--help**] [**-o**\ \|\ **--output**]
-[**--name**] [**--json**] <*input*>
+[**--overwrite**] [**--name**] [**--include-file**] [**--json**]
+<*input*>
 
 Description
 ===========
@@ -18,8 +19,14 @@ Options
 **-o**, **--output** [default: -]
    Path to output file
 
+**--overwrite** [default: false]
+   Allow overwriting existing files
+
 **--name** [default: WARC-Date,WARC-Type,Content-Type,Content-Length,WARC-Target-URI]
    Show values with the given field name
+
+**--include-file** [default: false]
+   Include filename and file position
 
 **--json** [default: false]
    Format the output as JSON

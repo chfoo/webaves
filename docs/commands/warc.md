@@ -6,6 +6,18 @@
 .. include:: ../man_page_fragments/webaves.warc.rst
 ```
 
+## checksum
+
+```{eval-rst}
+.. include:: ../man_page_fragments/webaves.warc.checksum.rst
+```
+
+### Example
+
+```bash
+webaves --verbose warc checksum input_file.warc.gz
+```
+
 ## dump
 
 ```{eval-rst}
@@ -62,6 +74,18 @@ End of record indicator:
 
 ```json
 "EndOfRecord"
+```
+
+## extract
+
+```{eval-rst}
+.. include:: ../man_page_fragments/webaves.warc.extract.rst
+```
+
+### Example
+
+```bash
+webaves --verbose warc extract input_file.warc.gz --output docs_output/
 ```
 
 ## list

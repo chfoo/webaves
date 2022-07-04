@@ -6,7 +6,7 @@ Synopsis
 Description
 ===========
 
-Read, manipulate, or write WARC files
+Read, manipulate, or write WARC files and records
 
 Options
 =======
@@ -25,6 +25,12 @@ list
 
 load
    Transform JSON formatted input to WARC file
+
+extract
+   Decode and extract documents to files
+
+checksum
+   Verifies checksums
 
 help
    Print this message or the help of the given subcommand(s)

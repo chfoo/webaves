@@ -45,7 +45,7 @@ dns-lookup
    Lookup DNS records
 
 warc
-   Process WARC files.
+   Process WARC files
 
 help
    Print this message or the help of the given subcommand(s)

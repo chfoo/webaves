@@ -2,11 +2,11 @@
 .el .ds Aq '
 .TH warc 1  "warc " 
 .SH NAME
-warc \- Process WARC files.
+warc \- Process WARC files
 .SH SYNOPSIS
 \fBwarc\fR [\fB\-h\fR|\fB\-\-help\fR] <\fIsubcommands\fR>
 .SH DESCRIPTION
-Read, manipulate, or write WARC files
+Read, manipulate, or write WARC files and records
 .SH OPTIONS
 .TP
 \fB\-h\fR, \fB\-\-help\fR
@@ -21,6 +21,12 @@ Listing of file contents using header fields
 .TP
 warc\-load(1)
 Transform JSON formatted input to WARC file
+.TP
+warc\-extract(1)
+Decode and extract documents to files
+.TP
+warc\-checksum(1)
+Verifies checksums
 .TP
 warc\-help(1)
 Print this message or the help of the given subcommand(s)
