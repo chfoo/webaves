@@ -7,7 +7,7 @@ use std::{
 };
 
 use clap::{Arg, ArgAction, ArgMatches, Command};
-use indicatif::ProgressBar;
+use indicatif::{ProgressBar, ProgressStyle, ProgressDrawTarget};
 use tracing_subscriber::{prelude::*, EnvFilter};
 
 const LOG_LEVEL_HELP: &str = "Set the level of severity of logging messages";
@@ -22,6 +22,9 @@ const LOG_FORMAT_HELP_LONG: &str = "Format of logging messages.
 
 By default, logging output is formatted for human consumption. \
 For processing, JSON formatted output can be specified instead.";
+
+const PROGRESS_BAR_STYLE_TEMPLATE: &str =
+    r"[{elapsed_precise}] {wide_bar} {percent:>3}% {bytes}/{total_bytes}";
 
 lazy_static::lazy_static! {
     static ref PROGRESS_BAR: RwLock<Option<ProgressBar>> =RwLock::new(None);
@@ -194,7 +197,12 @@ pub fn is_verbose(arg_matches: &ArgMatches) -> bool {
 
 pub fn create_and_config_progress_bar(arg_matches: &ArgMatches) -> ProgressBar {
     if is_verbose(arg_matches) {
-        let progress_bar = ProgressBar::new(0);
+        let progress_bar = ProgressBar::with_draw_target(None, ProgressDrawTarget::stderr_with_hz(2));
+        progress_bar.set_style(
+            ProgressStyle::default_bar()
+                .template(PROGRESS_BAR_STYLE_TEMPLATE)
+                .unwrap(),
+        );
         set_progress_bar(Some(progress_bar.clone()));
         progress_bar
     } else {
