@@ -2,7 +2,8 @@ name: Rust build release binaries
 
 on:
   workflow_dispatch:
-  push: tags
+  push:
+    tags: "*"
 
 env:
   CARGO_TERM_COLOR: always
@@ -29,7 +30,6 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
-    - uses: actions-rs/toolchain@v1
     - uses: Swatinem/rust-cache@v1
 
     - name: Build release binaries
