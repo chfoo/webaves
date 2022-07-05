@@ -37,7 +37,7 @@ jobs:
       with:
         command: build
         args: --verbose --release --target ${{ matrix.target.triple }}
-        use_cross: ${{ matrix.target.cross }}
+        use-cross: ${{ matrix.target.cross }}
 
     - name: Generate release docs
       run: cargo xtask gen-copyright-file

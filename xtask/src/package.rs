@@ -21,7 +21,7 @@ pub fn handle_package_app_command(target_triple: Option<&str>) -> anyhow::Result
     }
     std::fs::create_dir_all(&package_dir)?;
 
-    copy_project_file("README.md", "README.md", &package_dir)?;
+    copy_project_file("README.md", "README.txt", &package_dir)?;
     copy_project_file("LICENSE", "MPL-2.0.txt", &package_dir)?;
     copy_file(
         &target_dir.join("xtask/copyright.txt"),
