@@ -3,7 +3,7 @@ name: Rust build release binaries
 on:
   workflow_dispatch:
   push:
-    tags: "*"
+    tags: [ "webaves-app-*" ]
 
 env:
   CARGO_TERM_COLOR: always
@@ -36,7 +36,7 @@ jobs:
       uses: actions-rs/cargo@v1
       with:
         command: build
-        args: --verbose --release --target ${{ matrix.target.triple }}
+        args: --verbose --release --bin webaves-app --target ${{ matrix.target.triple }}
         use-cross: ${{ matrix.target.cross }}
 
     - name: Generate release docs
