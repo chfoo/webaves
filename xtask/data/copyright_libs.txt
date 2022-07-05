@@ -1,0 +1,4 @@
+Zstandard
+    Copyright (c) 2016-present, Facebook, Inc. All rights reserved.
+    BSD License
+    https://facebook.github.io/zstd/

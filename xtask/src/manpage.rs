@@ -1,10 +1,10 @@
-use std::{collections::HashMap, io::Write, path::PathBuf, process::Stdio, thread::JoinHandle};
+use std::{collections::HashMap, io::Write, process::Stdio, thread::JoinHandle};
 
 use anyhow::Context;
 use regex::Regex;
 
 pub fn handle_manpage_command() -> anyhow::Result<()> {
-    let process = std::process::Command::new(std::env::var("CARGO").unwrap())
+    let process = std::process::Command::new(crate::common::cargo_command())
         .arg("run")
         .arg("--bin")
         .arg("gen_man_page")
@@ -13,17 +13,13 @@ pub fn handle_manpage_command() -> anyhow::Result<()> {
         .spawn()?;
 
     let output = process.wait_with_output()?;
+    anyhow::ensure!(output.status.success());
     let table = serde_json::from_slice::<HashMap<String, String>>(&output.stdout)?;
 
-    let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").unwrap();
-    let output_dir = PathBuf::new()
-        .join(&manifest_dir)
-        .join("..")
+    let output_dir = crate::common::root_project_dir()
         .join("docs")
         .join("man_page");
-    let fragment_output_dir = PathBuf::new()
-        .join(&manifest_dir)
-        .join("..")
+    let fragment_output_dir = crate::common::root_project_dir()
         .join("docs")
         .join("man_page_fragments");
 
@@ -35,14 +31,17 @@ pub fn handle_manpage_command() -> anyhow::Result<()> {
 
     for (key, value) in table.iter() {
         let key = replace_program_name(key);
-        let value = replace_program_name(value);
+        let mut value = replace_program_name(value);
+        value.insert_str(0, ".\\\" Automatically generated; do not edit!\n.\\\"\n");
+
         let roff_path = output_dir.join(format!("{}.roff", key));
         eprintln!("Writing {:?}", roff_path);
         std::fs::write(&roff_path, &value)?;
 
         let fragment_path = fragment_output_dir.join(format!("{}.rst", key));
         eprintln!("Writing {:?}", fragment_path);
-        let content = reformat_to_fragment(&key, &value)?;
+        let mut content = reformat_to_fragment(&key, &value)?;
+        content.insert_str(0, ".. Automatically generated; do not edit!\n\n");
         std::fs::write(&fragment_path, content)?;
     }
 
@@ -65,6 +64,7 @@ fn reformat_to_fragment(name: &str, input_roff: &str) -> anyhow::Result<String> 
         Ok(())
     });
     let output = process.wait_with_output()?;
+    anyhow::ensure!(output.status.success());
     stdin_handle.join().unwrap()?;
 
     let rst_content = String::from_utf8(output.stdout)?;
@@ -76,7 +76,7 @@ fn reformat_to_fragment(name: &str, input_roff: &str) -> anyhow::Result<String> 
     Ok(rst_content)
 }
 
-fn replace_program_name(text:&str) -> String {
+fn replace_program_name(text: &str) -> String {
     text.replace("PROGRAM_NAME", "webaves")
 }
 

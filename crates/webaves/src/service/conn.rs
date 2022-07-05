@@ -255,7 +255,7 @@ fn path_to_session_id(path: &Path) -> String {
         bytes.push(unit as u8);
     }
 
-    let hash = mx3::hash(&bytes, 1);
+    let hash = mx3::v3::hash(&bytes, 1);
 
     format!("{:016x}", hash)
 }

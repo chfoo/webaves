@@ -1,16 +1,53 @@
+mod common;
+mod docs;
 mod manpage;
+mod package;
 
-use clap::{crate_name, Command};
+use clap::{crate_name, Arg, Command};
+
+const GEN_MAN_PAGE_ABOUT: &str = "Generate man pages files and fragments into docs/ directory.
+
+The fragment files are to be included in written documentation. \
+They're manually generated and committed so that they can be rendered \
+on readthedocs.org.
+
+Required software: pandoc";
+const BUILD_HTML_DOCS_ABOUT: &str = "Build HTML files in the docs/ directory.
+
+Required software: sphinx-doc
+Required Python packages: myst-parser";
+const GEN_COPYRIGHT_FILE_ABOUT: &str =
+    "Generate a copyright & license file listing dependencies in target/xtask/copyright.txt";
+const BUILD_PACKAGE_APP_ABOUT: &str = "Packages the application into a simple zip/tar.gz archive.
+
+The binary, readme file, license file are included. \
+This command expects the requisite files to be already built.";
 
 fn main() -> anyhow::Result<()> {
     let command = Command::new(crate_name!())
         .subcommand_required(true)
-        .subcommand(Command::new("gen-man-page").about("Generate man pages into docs/"));
+        .subcommand(Command::new("gen-man-page").long_about(GEN_MAN_PAGE_ABOUT))
+        .subcommand(Command::new("build-html-docs").long_about(BUILD_HTML_DOCS_ABOUT))
+        .subcommand(Command::new("gen-copyright-file").long_about(GEN_COPYRIGHT_FILE_ABOUT))
+        .subcommand(
+            Command::new("package-app")
+                .long_about(BUILD_PACKAGE_APP_ABOUT)
+                .arg(Arg::new("target_triple").long("target-triple")),
+        );
 
     let arg_matches = command.get_matches();
 
     match arg_matches.subcommand() {
         Some(("gen-man-page", _sub_matches)) => crate::manpage::handle_manpage_command()?,
+        Some(("build-html-docs", _sub_matches)) => crate::docs::handle_docs_command()?,
+        Some(("gen-copyright-file", _sub_matches)) => {
+            crate::docs::handle_gen_copyright_file_command()?
+        }
+        Some(("package-app", sub_matches)) => crate::package::handle_package_app_command(
+            sub_matches
+                .get_one::<String>("target_triple")
+                .map(|s| s.as_str()),
+        )?,
         _ => unreachable!(),
     };
 

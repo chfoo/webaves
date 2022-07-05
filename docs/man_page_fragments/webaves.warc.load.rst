@@ -1,3 +1,5 @@
+.. Automatically generated; do not edit!
+
 Synopsis
 ========
 
