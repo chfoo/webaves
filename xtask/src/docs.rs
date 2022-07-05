@@ -26,6 +26,7 @@ struct LicenseInfo {
 
 pub fn handle_gen_copyright_file_command() -> anyhow::Result<()> {
     let metadata = crate::common::cargo_metadata();
+    std::fs::create_dir_all( metadata.target_directory.join("xtask"))?;
     let output_path = metadata.target_directory.join("xtask/copyright.txt");
 
     eprintln!("Output path: {output_path:?}");
@@ -82,7 +83,7 @@ pub fn handle_gen_copyright_file_command() -> anyhow::Result<()> {
 }
 
 fn remove_email(text: &str) -> String {
-    let re = Regex::new(r" <.+@.+>").unwrap();
+    let re = Regex::new(r" ?<.+@.+>").unwrap();
 
     re.replace_all(text, r"").into_owned()
 }

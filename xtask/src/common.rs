@@ -21,7 +21,7 @@ pub fn cargo_metadata() -> Metadata {
     MetadataCommand::new().exec().unwrap()
 }
 
-pub fn host_target() -> String {
+pub fn host_target_triple() -> String {
     let process = std::process::Command::new("rustc")
         .arg("-vV")
         .stdout(Stdio::piped())
@@ -58,6 +58,7 @@ pub fn version(name: &str) -> anyhow::Result<String> {
     anyhow::bail!("no version for crate {name}");
 }
 
+#[allow(dead_code)]
 pub fn artifact_path(name: &str) -> anyhow::Result<PathBuf> {
     let process = Command::new(cargo_command())
         .arg("build")
@@ -85,19 +86,29 @@ pub fn artifact_path(name: &str) -> anyhow::Result<PathBuf> {
     anyhow::bail!("no matching artifact for name {name}")
 }
 
-pub fn binary_path(name: &str, target_triple: &str, release: bool) -> PathBuf {
+pub fn binary_path(name: &str, target_triple: Option<&str>, release: bool) -> PathBuf {
+    let host_target_triple = host_target_triple();
     let mut path = target_dir();
 
-    if target_triple != host_target() {
+    if let Some(target_triple) = target_triple {
         path.push(target_triple);
     }
 
+    let binary_name = if target_triple
+        .unwrap_or(&host_target_triple)
+        .contains("windows")
+    {
+        format!("{name}.exe")
+    } else {
+        name.to_string()
+    };
+
     if release {
         path.push("release");
-        path.push(name);
+        path.push(binary_name);
     } else {
         path.push("debug");
-        path.push(name);
+        path.push(binary_name);
     }
 
     path

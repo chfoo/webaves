@@ -32,7 +32,11 @@ fn main() -> anyhow::Result<()> {
         .subcommand(
             Command::new("package-app")
                 .long_about(BUILD_PACKAGE_APP_ABOUT)
-                .arg(Arg::new("target_triple").long("target-triple")),
+                .arg(
+                    Arg::new("target_triple")
+                        .long("target-triple")
+                        .takes_value(true),
+                ),
         );
 
     let arg_matches = command.get_matches();

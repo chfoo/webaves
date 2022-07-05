@@ -1,4 +1,4 @@
-name: Rust test
+name: Rust unit & integration tests
 
 on:
   push:
@@ -16,7 +16,9 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - uses: Swatinem/rust-cache@v1
-    - name: Run tests
-      run: cargo test --verbose
-    - name: Test build
-      run: cargo build --verbose
+
+    - name: Run all tests
+      uses: actions-rs/cargo@v1
+      with:
+        command: test
+        args: --verbose
