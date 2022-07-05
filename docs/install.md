@@ -1,12 +1,20 @@
 # Installing the CLI application
 
-The CLI application currently does not have an installer but it can be manually placed in a well-known location.
+The CLI application currently does not have an installer but the standalone version can be used.
 
-## Manual setup
+## Standalone
+
+The standalone version is the application itself bundled into a Zip file. The application can be extracted and manually placed in a well-known location.
+
+* [Downloads](https://github.com/chfoo/webaves/releases)
 
 ### Windows
 
-These optional steps describes how to add a location to the `PATH` environment variable. This is done so you don't have to manually specify the full path to the application.
+If the application does not start because of a missing VC Runtime, install the [latest one](https://docs.microsoft.com/en-US/cpp/windows/latest-supported-vc-redist?view=msvc-170) (usually the x64 version).
+
+#### Adding to PATH
+
+These optional steps describes how to add a location to the `PATH` environment variable. The location should be the folder containing the application. This is done so you don't have to manually specify the full path to the application.
 
 1. Create the folder for the application.
 2. Download and unzip the application to the folder that you've created.

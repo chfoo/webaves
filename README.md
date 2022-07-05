@@ -4,12 +4,17 @@ Web archiving software suite.
 
 **Work in progress.** The code, functionality, and documentation is incomplete.
 
+What's mostly implemented:
+
+* WARC files
+  * List contents, dump & load as JSON, and extract files
+  * API: read and write WARC files
+
 The following is planned:
 
 * Traditional web crawler & archiver
 * MITM proxy server capture
 * Browser-based capture
-* WARC file manipulation
 * Alternative archive file format
 
 ## Installation

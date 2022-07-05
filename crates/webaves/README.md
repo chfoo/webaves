@@ -8,11 +8,11 @@ This a library crate for developers who want to use individual components of Web
 
 ## Usage
 
-Add `webaves` as a dependency to `Cargo.toml`:
+Add `webaves` as a dependency to `Cargo.toml`. For example:
 
 ```toml
 [dependencies]
-webaves = 0.0
+webaves = 1.0 # <- Replace the version number as needed.
 ```
 
 ## Cargo Features
