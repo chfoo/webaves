@@ -4,7 +4,7 @@ Web archive software suite.
 
 This is a binary crate for the application portion of the software suite. General information can be found in the [main readme](README.main.md).
 
-![Crates.io](https://img.shields.io/crates/v/webaves-app) [![Documentation Status](https://readthedocs.org/projects/webaves/badge/?version=latest)](https://webaves.readthedocs.io/en/latest/?badge=latest)
+[![Crates.io](https://img.shields.io/crates/v/webaves-app)](https://crates.io/crates/webaves-app) [![Documentation Status](https://readthedocs.org/projects/webaves/badge/?version=latest)](https://webaves.readthedocs.io/en/latest/?badge=latest)
 
 ## Build
 

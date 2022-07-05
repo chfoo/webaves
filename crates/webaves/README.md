@@ -4,7 +4,7 @@ Web archive software suite.
 
 This a library crate for developers who want to use individual components of Webaves. General information can be found in the [main readme](README.main.md).
 
-![Crates.io](https://img.shields.io/crates/v/webaves) ![docs.rs](https://img.shields.io/docsrs/webaves)
+[![Crates.io](https://img.shields.io/crates/v/webaves)](https://crates.io/crates/webaves) [![docs.rs](https://img.shields.io/docsrs/webaves)](https://docs.rs/webaves)
 
 ## Usage
 

@@ -10,7 +10,7 @@ cargo_metadata = "0.15"
 chrono = "0.4"
 clap = { version = "3.2", features = ["color", "suggestions", "cargo", "unicode", "wrap_help"] }
 flate2 = "1.0"
-octocrab = "0.16"
+octocrab = { version = "0.16", default-features = false , features = [ "rustls" ] }
 regex = "1.5"
 serde_json = "1.0"
 tar = "0.4"

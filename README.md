@@ -33,7 +33,7 @@ For information on how to use the application, see the [user guide](https://weba
 
 The components of Webaves can be reused in your own Rust projects from the [`webaves` crate](crates/webaves/README.md).
 
-![Crates.io](https://img.shields.io/crates/v/webaves) ![docs.rs](https://img.shields.io/docsrs/webaves)
+[![Crates.io](https://img.shields.io/crates/v/webaves)](https://crates.io/crates/webaves) [![docs.rs](https://img.shields.io/docsrs/webaves)](https://docs.rs/webaves)
 
 ## Contributing
 
