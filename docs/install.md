@@ -1,4 +1,4 @@
-# Installing the CLI application
+# Installation
 
 The CLI application currently does not have an installer but the standalone version can be used.
 

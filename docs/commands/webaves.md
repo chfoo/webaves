@@ -1,7 +1,7 @@
-# Commands and options
+# webaves
 
 ```{eval-rst}
-.. include:: ../man_page_fragments/webaves.rst
+.. include:: fragments/webaves.rst
 ```
 
 ## Log filter syntax

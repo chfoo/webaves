@@ -9,7 +9,8 @@ use std::path::PathBuf;
 
 use clap::{crate_name, Arg, Command};
 
-const GEN_MAN_PAGE_ABOUT: &str = "Generate man pages files and fragments into docs/ directory.
+const GEN_COMMANDS_ABOUT: &str =
+    "Generate command help fragments into docs/commands/fragments/ directory.
 
 The fragment files are to be included in written documentation. \
 They're manually generated and committed so that they can be rendered \
@@ -35,7 +36,7 @@ The artifacts will be placed in target/xtask/github_artifacts/.";
 async fn main() -> anyhow::Result<()> {
     let command = Command::new(crate_name!())
         .subcommand_required(true)
-        .subcommand(Command::new("gen-man-page").long_about(GEN_MAN_PAGE_ABOUT))
+        .subcommand(Command::new("gen-commands").long_about(GEN_COMMANDS_ABOUT))
         .subcommand(Command::new("build-html-docs").long_about(BUILD_HTML_DOCS_ABOUT))
         .subcommand(Command::new("gen-copyright-file").long_about(GEN_COPYRIGHT_FILE_ABOUT))
         .subcommand(
@@ -80,7 +81,7 @@ async fn main() -> anyhow::Result<()> {
     let arg_matches = command.get_matches();
 
     match arg_matches.subcommand() {
-        Some(("gen-man-page", _sub_matches)) => crate::manpage::handle_manpage_command()?,
+        Some(("gen-commands", _sub_matches)) => crate::manpage::handle_gen_commands_command()?,
         Some(("build-html-docs", _sub_matches)) => crate::docs::handle_docs_command()?,
         Some(("gen-copyright-file", _sub_matches)) => {
             crate::docs::handle_gen_copyright_file_command()?
