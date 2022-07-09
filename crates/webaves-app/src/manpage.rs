@@ -1,18 +1,20 @@
 #![allow(dead_code)]
+mod args;
+mod argtypes;
+mod dns;
+mod dns_lookup;
+mod echo;
+mod logging;
+mod message;
+mod service;
+mod warc;
 
 use std::collections::HashMap;
 
 use clap::Command;
 
-mod argutil;
-mod common;
-mod dns_lookup;
-mod echo;
-mod logging;
-mod warc;
-
 fn main() -> anyhow::Result<()> {
-    let command = crate::argutil::build_commands().name("PROGRAM_NAME");
+    let command = crate::args::root_command().name("PROGRAM_NAME");
     let mut roff_table = HashMap::new();
 
     render_command_recursive(&command, "", &mut roff_table)?;

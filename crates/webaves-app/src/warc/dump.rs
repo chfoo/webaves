@@ -4,7 +4,7 @@ use clap::ArgMatches;
 use serde::{Deserialize, Serialize};
 use webaves::{header::HeaderMap, warc::WARCWriter};
 
-use crate::argutil::{MultiInput, OutputStream};
+use crate::argtypes::{MultiInput, OutputStream};
 
 use super::read::read_warc_files_loop;
 

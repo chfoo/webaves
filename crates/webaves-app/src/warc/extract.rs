@@ -12,7 +12,7 @@ use webaves::{
     warc::{extract::ExtractorDispatcher, BlockReader, HeaderMapExt, WARCReader},
 };
 
-use crate::argutil::MultiInput;
+use crate::argtypes::MultiInput;
 
 pub fn handle_extract_command(
     global_matches: &ArgMatches,

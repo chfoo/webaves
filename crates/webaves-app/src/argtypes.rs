@@ -8,7 +8,7 @@ use std::{
 };
 
 use anyhow::Context;
-use clap::{ArgMatches, Command};
+use clap::ArgMatches;
 use indicatif::ProgressBar;
 
 #[derive(Clone, Debug)]
@@ -135,32 +135,17 @@ impl MultiInput {
         })
     }
 
-    pub fn next_file(&mut self) -> anyhow::Result<Option<(PathBuf,InputStream)>> {
+    pub fn next_file(&mut self) -> anyhow::Result<Option<(PathBuf, InputStream)>> {
         match self.pending_paths.pop_front() {
             Some(path) => {
                 tracing::info!(?path, "reading file");
                 let file = InputStream::open(&path)
                     .with_context(|| format!("failed to open file {path:?}"))?;
-                Ok(Some((path,file)))
+                Ok(Some((path, file)))
             }
             None => Ok(None),
         }
     }
-}
-
-pub fn build_commands() -> Command<'static> {
-    let command = Command::new(clap::crate_name!())
-        .about("Web archive software suite")
-        .version(clap::crate_version!())
-        .subcommand_required(true)
-        .subcommand(Command::new("crash_error").hide(true))
-        .subcommand(Command::new("crash_panic").hide(true))
-        .subcommand(crate::dns_lookup::create_command())
-        .subcommand(crate::echo::create_server_command())
-        .subcommand(crate::echo::create_client_command())
-        .subcommand(crate::warc::create_command());
-
-    crate::logging::logging_args(command)
 }
 
 fn get_total_file_size(paths: &[PathBuf]) -> anyhow::Result<u64> {

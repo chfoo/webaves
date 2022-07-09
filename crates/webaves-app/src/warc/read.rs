@@ -13,7 +13,7 @@ use webaves::{
     warc::{HeaderMapExt, HeaderMetadata, LabelledDigest, WARCReader},
 };
 
-use crate::argutil::{MultiInput, OutputStream};
+use crate::argtypes::{MultiInput, OutputStream};
 
 pub fn read_warc_files_loop<FH, FB, FF>(
     global_matches: &ArgMatches,
