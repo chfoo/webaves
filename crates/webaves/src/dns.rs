@@ -7,8 +7,7 @@ use std::{
 };
 
 use rand::Rng;
-use serde::Serialize;
-use thiserror::Error;
+use serde::{Deserialize, Serialize};
 use trust_dns_resolver::{
     config::{LookupIpStrategy, NameServerConfig, Protocol, ResolverConfig, ResolverOpts},
     error::{ResolveError, ResolveErrorKind},
@@ -40,8 +39,11 @@ impl Resolver {
 
     /// Resolve the given hostname to IP addresses.
     #[tracing::instrument(skip(self), level = "debug")]
-    pub async fn lookup_address(&self, hostname: &str) -> Result<AddressResponse, ResolverError> {
-        let result = self.inner.lookup_ip(hostname).await;
+    pub async fn lookup_address<S>(&self, hostname: S) -> Result<AddressResponse, ResolverError>
+    where
+        S: AsRef<str> + std::fmt::Debug,
+    {
+        let result = self.inner.lookup_ip(hostname.as_ref()).await;
 
         match result {
             Ok(items) => self.process_address_ok(items),
@@ -80,16 +82,20 @@ impl Resolver {
 
     /// Resolve the given hostname to DNS resource records.
     #[tracing::instrument(skip(self), level = "debug")]
-    pub async fn lookup_record(
+    pub async fn lookup_record<R, H>(
         &self,
-        record_type: &str,
-        hostname: &str,
-    ) -> Result<Vec<String>, ResolverError> {
-        let record_type = Self::parse_record_type(record_type)?;
+        record_type: R,
+        hostname: H,
+    ) -> Result<Vec<String>, ResolverError>
+    where
+        R: AsRef<str> + std::fmt::Debug,
+        H: AsRef<str> + std::fmt::Debug,
+    {
+        let record_type = Self::parse_record_type(record_type.as_ref())?;
 
         let response = self
             .inner
-            .lookup(hostname, record_type, DnsRequestOptions::default())
+            .lookup(hostname.as_ref(), record_type, DnsRequestOptions::default())
             .await?;
         let mut text_records = Vec::new();
 
@@ -195,7 +201,7 @@ impl ResolverBuilder {
 }
 
 /// IP address lookup response.
-#[derive(Default, Serialize)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct AddressResponse {
     addresses: Vec<IpAddr>,
     text_records: Vec<String>,
@@ -214,7 +220,7 @@ impl AddressResponse {
 }
 
 /// DNS Resolver errors.
-#[derive(Error, Debug)]
+#[derive(thiserror::Error, Debug)]
 pub enum ResolverError {
     /// Non-existent domain.
     #[error("non-existent domain")]

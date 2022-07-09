@@ -14,33 +14,33 @@ use tracing::Instrument;
 
 use crate::error::Error;
 
-use super::conn::Listen;
+use super::Listen;
 
 /// Helper to run a Tarpc service.
-pub struct ServerRunner<Serv, Req, Lis, Stream>
+pub struct ServiceRunner<S, R, L, RW>
 where
-    Serv: Serve<Req>,
-    Lis: Listen<Stream>,
-    Stream: AsyncRead + AsyncWrite,
+    S: Serve<R>,
+    L: Listen<RW>,
+    RW: AsyncRead + AsyncWrite,
 {
-    server: Serv,
-    listener: Lis,
+    server: S,
+    listener: L,
 
-    _req: PhantomData<Req>,
-    _stream: PhantomData<Stream>,
+    _req: PhantomData<R>,
+    _stream: PhantomData<RW>,
 }
 
-impl<Serv, Req, Lis, Stream> ServerRunner<Serv, Req, Lis, Stream>
+impl<S, R, L, RW> ServiceRunner<S, R, L, RW>
 where
-    Serv: Serve<Req> + Send + Clone + 'static,
-    Serv::Fut: Send,
-    Req: for<'de> Deserialize<'de> + Send + 'static,
-    Serv::Resp: Serialize + Send + 'static,
-    Lis: Listen<Stream>,
-    Stream: AsyncRead + AsyncWrite + Send + 'static,
+    S: Serve<R> + Send + Clone + 'static,
+    S::Fut: Send,
+    R: for<'de> Deserialize<'de> + Send + 'static,
+    S::Resp: Serialize + Send + 'static,
+    L: Listen<RW>,
+    RW: AsyncRead + AsyncWrite + Send + 'static,
 {
     /// Create a `ServerRunner` with the given service handler and listener.
-    pub fn new(server: Serv, listener: Lis) -> Self {
+    pub fn new(server: S, listener: L) -> Self {
         Self {
             server,
             listener,

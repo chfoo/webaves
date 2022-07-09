@@ -9,6 +9,7 @@ pub mod error;
 pub mod header;
 pub mod http;
 pub mod io;
+pub mod net;
 mod nomutil;
 pub mod service;
 pub mod stringesc;

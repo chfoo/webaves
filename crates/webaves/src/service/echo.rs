@@ -5,7 +5,7 @@ use tarpc::context::Context;
 /// Name of the service.
 pub const SERVICE_NAME: &str = "echo";
 
-/// Echo service for testing.
+/// Echo RPC interface.
 #[tarpc::service]
 pub trait EchoRPC {
     /// Return the given text unchanged.

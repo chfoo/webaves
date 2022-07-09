@@ -51,3 +51,24 @@ impl Display for ParseError {
         self.0.fmt(f)
     }
 }
+
+/// Formats an error chain to a string.
+///
+/// This function can be used to express error messages that pass outside
+/// the Rust boundary.
+pub fn format_to_string<E: std::error::Error>(error: E) -> String {
+    let mut message = String::new();
+
+    message.push_str(&error.to_string());
+
+    let mut child_error = error.source();
+
+    while let Some(error) = child_error {
+        message.push_str(": ");
+        message.push_str(&error.to_string());
+
+        child_error = error.source();
+    }
+
+    message
+}
