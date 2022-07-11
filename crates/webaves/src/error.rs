@@ -9,47 +9,82 @@ use crate::{http::HTTPError, nomutil::NomParseError};
 /// General purpose error.
 #[derive(Error, Debug)]
 pub enum Error {
-    /// HTTP error.
+    /// Protocol error.
     #[error(transparent)]
-    HTTP(#[from] HTTPError),
+    Protocol(Box<dyn std::error::Error + Sync + Send>),
 
     /// Parse error.
     #[error(transparent)]
-    Parse(#[from] ParseError),
+    Parse(ParseError),
 
     /// IO error.
     #[error(transparent)]
     Io(#[from] std::io::Error),
-
-    /// Miscellaneous error.
-    #[error("{0}")]
-    Misc(&'static str),
 
     /// Uncategorized error.
     #[error(transparent)]
     Other(Box<dyn std::error::Error + Sync + Send>),
 }
 
+impl From<HTTPError> for Error {
+    fn from(error: HTTPError) -> Self {
+        Self::Protocol(Box::new(error))
+    }
+}
+
 /// Error during parsing indicating malformed or invalid character sequences.
 #[derive(Debug, Error)]
-pub struct ParseError(pub(crate) NomParseError);
+pub struct ParseError(ParseErrorImpl);
 
 impl ParseError {
     /// Offset where the final error occurred in the input.
     pub fn offset(&self) -> u64 {
-        self.0.offset()
+        match &self.0 {
+            ParseErrorImpl::Nom(error) => error.offset(),
+            ParseErrorImpl::Other(_) => 0,
+        }
     }
 
     /// A segment of the input near where the error occurred.
     pub fn input(&self) -> &[u8] {
-        self.0.input()
+        match &self.0 {
+            ParseErrorImpl::Nom(error) => error.input(),
+            ParseErrorImpl::Other(_) => b"",
+        }
     }
 }
 
 impl Display for ParseError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.0.fmt(f)
+        match &self.0 {
+            ParseErrorImpl::Nom(error) => error.fmt(f),
+            ParseErrorImpl::Other(message) => f.write_str(message),
+        }
     }
+}
+
+impl From<NomParseError> for ParseError {
+    fn from(error: NomParseError) -> Self {
+        Self(ParseErrorImpl::Nom(error))
+    }
+}
+
+impl From<&str> for ParseError {
+    fn from(error: &str) -> Self {
+        Self(ParseErrorImpl::Other(error.to_string()))
+    }
+}
+
+impl From<String> for ParseError {
+    fn from(error: String) -> Self {
+        Self(ParseErrorImpl::Other(error))
+    }
+}
+
+#[derive(Debug)]
+enum ParseErrorImpl {
+    Nom(NomParseError),
+    Other(String),
 }
 
 /// Formats an error chain to a string.

@@ -101,7 +101,7 @@ impl FromStr for LabelledDigest {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let (left, right) = match s.split_once(':') {
             Some(result) => result,
-            None => return Err(crate::error::Error::Misc("no separator")),
+            None => return Err(crate::error::Error::Parse("no separator".into())),
         };
         let left = left.trim();
         let right = right.trim();

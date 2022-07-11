@@ -27,7 +27,7 @@ impl HeaderParser {
     ///   if possible, otherwise unchanged.
     pub fn parse_header(&self, input: &[u8]) -> Result<HeaderMap, ParseError> {
         super::pc::parse_fields(input)
-            .map_err(|error| crate::error::ParseError(NomParseError::from_nom(input, &error)))
+            .map_err(|error| crate::error::ParseError::from(NomParseError::from_nom(input, &error)))
     }
 }
 
