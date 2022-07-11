@@ -113,7 +113,7 @@ impl Resolver {
 
         match RecordType::from_str(record_type) {
             Ok(value) => Ok(value),
-            Err(_) => Err(ResolverError::Io(std::io::ErrorKind::InvalidInput.into())),
+            Err(error) => Err(ResolverError::InvalidArg(Box::new(error))),
         }
     }
 
@@ -219,28 +219,32 @@ impl AddressResponse {
     }
 }
 
-/// DNS Resolver errors.
+/// General DNS resolver errors.
 #[derive(thiserror::Error, Debug)]
 pub enum ResolverError {
     /// Non-existent domain.
     #[error("non-existent domain")]
-    NoName,
+    NoName(#[source] ResolveError),
 
     /// No records for given record type.
     #[error("no records for given record type")]
-    NoRecord,
+    NoRecord(#[source] ResolveError),
 
     /// Other negative response.
-    #[error("negative response: {0}")]
-    Other(&'static str),
+    #[error(transparent)]
+    Negative(ResolveError),
+
+    /// Protocol error.
+    #[error(transparent)]
+    Protocol(ResolveError),
+
+    /// Invalid argument
+    #[error("invalid argument")]
+    InvalidArg(#[source] Box<dyn std::error::Error + Send + Sync>),
 
     /// Standard IO error.
     #[error(transparent)]
     Io(#[from] std::io::Error),
-
-    /// Third-party crate implementation error.
-    #[error(transparent)]
-    OtherInternal(ResolveError),
 }
 
 impl From<ResolveError> for ResolverError {
@@ -252,22 +256,22 @@ impl From<ResolveError> for ResolverError {
                 negative_ttl: _,
                 response_code: ResponseCode::NXDomain,
                 trusted: _,
-            } => Self::NoName,
+            } => Self::NoName(error),
             ResolveErrorKind::NoRecordsFound {
                 query: _,
                 soa: _,
                 negative_ttl: _,
                 response_code: ResponseCode::NoError,
                 trusted: _,
-            } => Self::NoRecord,
+            } => Self::NoRecord(error),
             ResolveErrorKind::NoRecordsFound {
                 query: _,
                 soa: _,
                 negative_ttl: _,
-                response_code,
+                response_code: _,
                 trusted: _,
-            } => Self::Other(response_code.to_str()),
-            _ => Self::OtherInternal(error),
+            } => Self::Negative(error),
+            _ => Self::Protocol(error),
         }
     }
 }
@@ -312,9 +316,7 @@ mod tests {
         assert!(!lookup.addresses.is_empty());
         assert!(!lookup.text_records.is_empty());
 
-        assert!(matches!(
-            resolver.lookup_address(&random_domain()).await,
-            Err(ResolverError::NoName)
-        ));
+        let result = resolver.lookup_address(&random_domain()).await;
+        assert!(matches!(result, Err(ResolverError::NoName(_))));
     }
 }
