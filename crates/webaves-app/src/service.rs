@@ -3,33 +3,27 @@ use serde::{Deserialize, Serialize};
 use tarpc::server::Serve;
 use tracing::Instrument;
 use webaves::{
-    dns::Resolver,
     net::{rpc::ServiceRunner, LocalListener, NameBuilder},
-    service::{
-        dns::{ResolverRPC, ResolverRPCServer},
-        echo::{EchoRPC, EchoRPCServer},
-    },
+    service::echo::{EchoRPC, EchoRPCServer},
 };
 
 pub fn create_service_command<'h>() -> Command<'h> {
-    Command::new("serve")
-        .subcommand_required(true)
-        .subcommand(
-            Command::new("echo-service")
-                .about("Echo service")
-                .hide(true),
-        )
-        .subcommand(
-            Command::new("dns-resolver")
-                .arg(crate::args::bind_address())
-                .arg(crate::dns::arg_doh_server()),
-        )
+    Command::new("serve").subcommand_required(true).subcommand(
+        Command::new("echo-service")
+            .about("Echo service")
+            .hide(true),
+    )
+    // .subcommand(
+    //     Command::new("dns-resolver")
+    //         .arg(crate::args::bind_address())
+    //         .arg(crate::dns::arg_doh_server()),
+    // )
 }
 
 pub async fn run(_global_matches: &ArgMatches, arg_matches: &ArgMatches) -> anyhow::Result<()> {
     match arg_matches.subcommand() {
         Some(("echo-service", _sub_matches)) => run_echo().await,
-        Some(("dns-resolver", sub_matches)) => run_dns_resolver(sub_matches).await,
+        // Some(("dns-resolver", sub_matches)) => run_dns_resolver(sub_matches).await,
         _ => unreachable!(),
     }
 }
@@ -73,14 +67,14 @@ async fn run_echo() -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn run_dns_resolver(arg_matches: &ArgMatches) -> anyhow::Result<()> {
-    let builder = crate::dns::config_resolver(Resolver::builder(), arg_matches)?;
-    let resolver = builder.build();
-    let server = ResolverRPCServer::new(resolver);
+// async fn run_dns_resolver(arg_matches: &ArgMatches) -> anyhow::Result<()> {
+//     let builder = crate::dns::config_resolver(Resolver::builder(), arg_matches)?;
+//     let resolver = builder.build();
+//     let server = ResolverRPCServer::new(resolver);
 
-    run_server(webaves::service::dns::SERVICE_NAME, server.serve())
-        .instrument(tracing::info_span!("echo"))
-        .await?;
+//     run_server(webaves::service::dns::SERVICE_NAME, server.serve())
+//         .instrument(tracing::info_span!("echo"))
+//         .await?;
 
-    Ok(())
-}
+//     Ok(())
+// }
