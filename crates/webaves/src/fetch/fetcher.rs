@@ -1,23 +1,21 @@
-use tokio::sync::mpsc;
-
 use crate::quest::Quest;
 
-use super::ResolverRequest;
+use super::SharedResources;
 
 pub struct Fetcher {
     quest: Quest,
-    resolver_request_sender: mpsc::Sender<ResolverRequest>,
+    shared_data: SharedResources,
 }
 
 impl Fetcher {
-    pub fn new(quest: Quest, resolver_request_sender: mpsc::Sender<ResolverRequest>) -> Self {
+    pub fn new(quest: Quest, shared_data: SharedResources) -> Self {
         Self {
             quest,
-            resolver_request_sender,
+            shared_data,
         }
     }
 
-    #[tracing::instrument(skip_all, level = "info", name = "fetcher", fields(quest_id = self.quest.id))]
+    #[tracing::instrument(skip_all, level = "info", name = "fetcher", fields(quest_id = %self.quest.id))]
     pub async fn run(&mut self) -> Result<(), FetchError> {
         match self.quest.url.scheme() {
             "http" | "https" => {

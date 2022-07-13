@@ -1,13 +1,31 @@
 //! Representation of work units for retrieving resources on the internet.
 
+use std::fmt::Display;
+
 use serde::{Deserialize, Serialize};
 use url::Url;
+
+/// ID of the quest.
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct QuestId(i64);
+
+impl Default for QuestId {
+    fn default() -> Self {
+        Self(Default::default())
+    }
+}
+
+impl Display for QuestId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
+    }
+}
 
 /// Represents a work unit or task for retrieving a resource.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Quest {
     /// ID of the quest.
-    pub id: i64,
+    pub id: QuestId,
 
     /// Processing status.
     pub status: QuestStatus,

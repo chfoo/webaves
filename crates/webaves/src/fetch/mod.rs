@@ -2,8 +2,8 @@
 
 mod fetcher;
 mod pipeline;
-mod resolver;
+mod shared;
 
 pub use fetcher::*;
 pub use pipeline::*;
-pub use resolver::*;
+pub use shared::*;

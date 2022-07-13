@@ -1,16 +1,14 @@
-use std::time::{Duration, Instant};
-
-use backoff::{backoff::Backoff, ExponentialBackoff};
-use tarpc::context::Context;
-use tokio::{
-    sync::mpsc,
-    task::{JoinError, JoinSet},
+use std::{
+    collections::HashMap,
+    time::{Duration, Instant},
 };
 
-use crate::error::Error as CrateError;
-use crate::{dns::Resolver, service::tracker::QuestTrackerRPCClient};
+use backoff::{backoff::Backoff, ExponentialBackoff};
+use tokio::task::{JoinError, JoinSet};
 
-use super::{FetchError, Fetcher, ResolverRequest};
+use crate::{error::Error as CrateError, quest::{QuestId, Quest}};
+
+use super::{FetchError, Fetcher, InputResources, SharedResources};
 
 #[derive(Copy, Clone, PartialEq, Eq)]
 enum PipelineState {
@@ -18,42 +16,35 @@ enum PipelineState {
     GracefulShutdown,
 }
 
-/// Gets [crate::quest::Quest]s from a [crate::tracker::QuestTracker] and runs [crate::fetch::Fetcher]s.
+/// Gets [crate::quest::Quest]s from a [crate::tracker::QuestTracker] and
+/// runs [crate::fetch::Fetcher]s.
 pub struct Pipeline {
-    quest_tracker: QuestTrackerRPCClient,
-    resolver: Resolver,
-    resolver_request_receiver: mpsc::Receiver<ResolverRequest>,
-    resolver_request_sender: mpsc::Sender<ResolverRequest>,
-
+    resources: SharedResources,
     state: PipelineState,
     concurrency: u16,
     tasks: JoinSet<Result<(), FetchError>>,
+    task_id_map: HashMap<tokio::task::Id, QuestId>,
     tracker_backoff: ExponentialBackoff,
     tracker_time: Instant,
 }
 
 impl Pipeline {
-    pub fn new(quest_tracker: QuestTrackerRPCClient, dns_resolver: Resolver) -> Self {
-        let (dns_resolver_request_sender, dns_resolver_request_receiver) = mpsc::channel(1);
-
+    pub fn new(resources: InputResources) -> Self {
         Self {
-            quest_tracker,
-            resolver: dns_resolver,
-            resolver_request_receiver: dns_resolver_request_receiver,
-            resolver_request_sender: dns_resolver_request_sender,
+            resources: SharedResources::new(resources),
             state: PipelineState::Running,
             concurrency: 0,
             tasks: JoinSet::new(),
-            tracker_backoff: Self::new_backoff(),
+            task_id_map: HashMap::new(),
+            tracker_backoff: Self::new_tracker_backoff(),
             tracker_time: Instant::now(),
         }
     }
 
-    fn new_backoff() -> ExponentialBackoff {
+    fn new_tracker_backoff() -> ExponentialBackoff {
         ExponentialBackoff {
-            initial_interval: Duration::from_secs(2),
+            initial_interval: Duration::from_secs(1),
             max_interval: Duration::from_secs(3600),
-            max_elapsed_time: Some(Duration::from_secs(3600 * 24)),
             ..Default::default()
         }
     }
@@ -109,23 +100,21 @@ impl Pipeline {
     async fn request_quest(&mut self) -> Result<(), CrateError> {
         tracing::info!("requesting quest");
 
-        match self.quest_tracker.check_out_quest(Context::current()).await {
-            Ok(result) => match result {
-                Some(quest) => {
-                    tracing::info!(id = quest.id, "quest received");
-                    self.tracker_backoff.reset();
+        let mut quest_tracker = self.resources.quest_tracker().lock().await;
 
-                    let mut fetcher = Fetcher::new(quest, self.resolver_request_sender.clone());
-                    self.tasks.spawn(async move { fetcher.run().await });
-                }
+        match quest_tracker.check_out_quest().await? {
+            Some(quest) => {
+                tracing::info!(quest_id = %quest.id, "quest received");
+                self.tracker_backoff.reset();
 
-                None => {
-                    tracing::info!("no quest received");
-                }
-            },
-            Err(error) => {
-                tracing::error!(%error, "tracker request RPC error");
-                // TODO: determine whether if any error is fatal here
+                let quest_id = quest.id;
+                let mut fetcher = Fetcher::new(quest, self.resources.clone());
+                let handle = self.tasks.spawn(async move { fetcher.run().await });
+                self.task_id_map.insert(handle.id(), quest_id);
+            }
+
+            None => {
+                tracing::info!("no quest received");
             }
         }
 
@@ -133,10 +122,11 @@ impl Pipeline {
     }
 
     async fn process_tasks(&mut self) -> Result<(), CrateError> {
-        if let Some(join_result) = self.tasks.join_one().await {
+        if let Some(join_result) = self.tasks.join_one_with_id().await {
             match unwrap_finished_task(join_result).await {
-                Some(result) => {
-                    self.process_fetch_result(result).await?;
+                Some((task_id, result)) => {
+                    let quest_id = self.task_id_map.remove(&task_id).unwrap();
+                    self.process_fetch_result(quest_id, result).await?;
                 }
                 None => {}
             }
@@ -147,9 +137,21 @@ impl Pipeline {
 
     async fn process_fetch_result(
         &mut self,
+        quest_id: QuestId,
         result: Result<(), FetchError>,
     ) -> Result<(), CrateError> {
-        todo!()
+        match result {
+            Ok(_) => todo!(),
+            Err(error) => {
+                tracing::error!(%error, "fetch error");
+
+                let mut quest_tracker = self.resources.quest_tracker().lock().await;
+
+                quest_tracker.check_in_quest_error(quest_id, &error).await?;
+
+                Ok(())
+            }
+        }
     }
 }
 
