@@ -13,6 +13,7 @@ pub mod io;
 pub mod net;
 mod nomutil;
 pub mod quest;
+pub mod retry;
 pub mod service;
 pub mod stringesc;
 pub mod stringutil;
