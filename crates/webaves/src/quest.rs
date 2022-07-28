@@ -4,16 +4,11 @@ use std::fmt::Display;
 
 use serde::{Deserialize, Serialize};
 use url::Url;
+use uuid::Uuid;
 
 /// ID of the quest.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct QuestId(i64);
-
-impl Default for QuestId {
-    fn default() -> Self {
-        Self(Default::default())
-    }
-}
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct QuestId(Uuid);
 
 impl Display for QuestId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -26,14 +21,6 @@ impl Display for QuestId {
 pub struct Quest {
     /// ID of the quest.
     pub id: QuestId,
-
-    /// Processing status.
-    pub status: QuestStatus,
-
-    /// Fetch priority.
-    ///
-    /// More positive numbers are higher priority than numbers towards negative.
-    pub priority: i64,
 
     /// URL of the resource to be fetched.
     pub url: Url,
@@ -49,48 +36,6 @@ pub struct Quest {
 
     /// Protocol-specific parameters.
     pub protocol_parameters: ProtocolParameters,
-}
-
-impl Default for Quest {
-    fn default() -> Self {
-        Self {
-            id: Default::default(),
-            status: Default::default(),
-            priority: Default::default(),
-            url: Url::parse("tag:chfoo.github.io,2022:webaves:default").unwrap(),
-            parent: Default::default(),
-            depth: Default::default(),
-            protocol_parameters: Default::default(),
-        }
-    }
-}
-
-/// Processing status of the quest.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum QuestStatus {
-    /// New quest ready to be processed.
-    New,
-
-    /// Quest was completed with success.
-    Done,
-
-    /// Quest was completed but the resource was not found.
-    NotFound,
-
-    /// Quest could not be completed because a network or server error.
-    Failed,
-
-    /// Quest could not be completed because of a program error or crash.
-    Error,
-
-    /// Quest was previously added but was marked to be ignored.
-    Skipped,
-}
-
-impl Default for QuestStatus {
-    fn default() -> Self {
-        Self::New
-    }
 }
 
 /// Protocol-specific parameters.

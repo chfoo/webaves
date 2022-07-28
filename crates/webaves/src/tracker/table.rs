@@ -1,6 +1,10 @@
 use std::path::Path;
 
+use chrono::{DateTime, Utc};
 use rusqlite::Connection;
+use serde::{Deserialize, Serialize};
+use url::Url;
+use uuid::Uuid;
 
 use super::TrackerError;
 
@@ -71,5 +75,87 @@ impl Table {
         }
 
         Ok(())
+    }
+}
+
+#[derive(Debug)]
+pub struct Quest {
+    pub id: Uuid,
+
+    /// Processing status.
+    pub status: QuestStatus,
+
+    /// Fetch priority.
+    ///
+    /// More positive numbers are higher priority than numbers towards negative.
+    pub priority: i64,
+
+    /// URL of the resource to be fetched.
+    pub url: Url,
+
+    /// The previous quest that invoked this quest.
+    pub parent: Option<Uuid>,
+
+    /// The ancestry count of the quest.
+    ///
+    /// A quest with no parent (root) is depth 0, the child is 1,
+    /// the grandchild is 2, and so on.
+    pub depth: u64,
+}
+
+/// Processing status of the quest.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum QuestStatus {
+    /// New quest ready to be processed.
+    New,
+
+    /// Quest was completed with success.
+    Done,
+
+    /// Quest was completed but the resource was not found.
+    NotFound,
+
+    /// Quest could not be completed because a network or server error.
+    Failed,
+
+    /// Quest could not be completed because of a program error or crash.
+    Error,
+
+    /// Quest was previously added but was marked to be ignored.
+    Skipped,
+}
+
+pub struct Assignment {
+    pub id: Uuid,
+    pub quest_id: Uuid,
+    pub status: AssignmentStatus,
+    pub created: DateTime<Utc>,
+    pub updated: DateTime<Utc>,
+    pub fetcher_id: Uuid,
+}
+
+pub enum AssignmentStatus {
+    Active,
+    Completed,
+    Expired,
+    Failed,
+}
+
+pub struct AssignmentReport {
+    pub assignment_id: Uuid,
+    pub message: String,
+}
+
+
+#[cfg(test)]
+mod tests {
+    use tempdir::TempDir;
+
+    use super::*;
+
+    #[test]
+    fn test_create_db() {
+        let dir = TempDir::new("webaves-test").unwrap();
+        Table::open(dir.path().join("db")).unwrap();
     }
 }
