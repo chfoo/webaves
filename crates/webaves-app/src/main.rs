@@ -15,9 +15,8 @@ fn main() {
     std::process::exit(exit_code);
 }
 
-#[tokio::main]
-async fn main_inner() -> i32 {
-    let result = main_inner_inner().await;
+fn main_inner() -> i32 {
+    let result = main_inner_inner();
 
     match result {
         Ok(_) => {
@@ -34,7 +33,7 @@ async fn main_inner() -> i32 {
     }
 }
 
-async fn main_inner_inner() -> anyhow::Result<()> {
+fn main_inner_inner() -> anyhow::Result<()> {
     let command = crate::args::root_command();
     let arg_matches = command.get_matches();
 
@@ -43,10 +42,10 @@ async fn main_inner_inner() -> anyhow::Result<()> {
     match arg_matches.subcommand() {
         Some(("crash_error", _sub_matches)) => do_crash_error(),
         Some(("crash_panic", _sub_matches)) => do_crash_panic(),
-        Some(("dns-lookup", sub_matches)) => crate::dns_lookup::run(sub_matches).await,
+        Some(("dns-lookup", sub_matches)) => crate::dns_lookup::run(sub_matches),
         // Some(("echo-service", sub_matches)) => crate::echo::run_server(sub_matches).await,
-        Some(("echo", sub_matches)) => crate::echo::run_client(&arg_matches, sub_matches).await,
-        Some(("serve", sub_matches)) => crate::service::run(&arg_matches, sub_matches).await,
+        Some(("echo", sub_matches)) => crate::echo::run_client(&arg_matches, sub_matches),
+        Some(("serve", sub_matches)) => crate::service::run(&arg_matches, sub_matches),
         Some(("warc", sub_matches)) => crate::warc::run(&arg_matches, sub_matches),
         _ => unreachable!(),
     }?;

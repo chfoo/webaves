@@ -12,8 +12,8 @@ use trust_dns_resolver::{
     config::{LookupIpStrategy, NameServerConfig, Protocol, ResolverConfig, ResolverOpts},
     error::{ResolveError, ResolveErrorKind},
     lookup_ip::LookupIp,
-    proto::{op::ResponseCode, rr::RecordType, xfer::DnsRequestOptions},
-    TokioAsyncResolver,
+    proto::{op::ResponseCode, rr::RecordType},
+    Resolver as TrustResolver,
 };
 
 /// DNS resolver client with a simple interface.
@@ -24,11 +24,11 @@ use trust_dns_resolver::{
 ///
 /// Results are automatically cached.
 pub struct Resolver {
-    inner: TokioAsyncResolver,
+    inner: TrustResolver,
 }
 
 impl Resolver {
-    fn new(inner: TokioAsyncResolver) -> Self {
+    fn new(inner: TrustResolver) -> Self {
         Self { inner }
     }
 
@@ -39,11 +39,11 @@ impl Resolver {
 
     /// Resolve the given hostname to IP addresses.
     #[tracing::instrument(skip(self), level = "debug")]
-    pub async fn lookup_address<S>(&self, hostname: S) -> Result<AddressResponse, ResolverError>
+    pub fn lookup_address<S>(&self, hostname: S) -> Result<AddressResponse, ResolverError>
     where
         S: AsRef<str> + std::fmt::Debug,
     {
-        let result = self.inner.lookup_ip(hostname.as_ref()).await;
+        let result = self.inner.lookup_ip(hostname.as_ref());
 
         match result {
             Ok(items) => self.process_address_ok(items),
@@ -82,7 +82,7 @@ impl Resolver {
 
     /// Resolve the given hostname to DNS resource records.
     #[tracing::instrument(skip(self), level = "debug")]
-    pub async fn lookup_record<R, H>(
+    pub fn lookup_record<R, H>(
         &self,
         record_type: R,
         hostname: H,
@@ -93,10 +93,7 @@ impl Resolver {
     {
         let record_type = Self::parse_record_type(record_type.as_ref())?;
 
-        let response = self
-            .inner
-            .lookup(hostname.as_ref(), record_type, DnsRequestOptions::default())
-            .await?;
+        let response = self.inner.lookup(hostname.as_ref(), record_type)?;
         let mut text_records = Vec::new();
 
         for record in response.record_iter() {
@@ -118,8 +115,8 @@ impl Resolver {
     }
 
     /// Removes any stored entires in the cache.
-    pub async fn clear_cache(&mut self) {
-        self.inner.clear_cache().await;
+    pub fn clear_cache(&mut self) {
+        self.inner.clear_cache().unwrap();
     }
 }
 
@@ -196,7 +193,7 @@ impl ResolverBuilder {
             config.add_name_server(server_config);
         }
 
-        Resolver::new(TokioAsyncResolver::tokio(config, opts).unwrap())
+        Resolver::new(TrustResolver::new(config, opts).unwrap())
     }
 }
 
@@ -301,22 +298,22 @@ mod tests {
         assert!(result.contains('.'));
     }
 
-    #[test_log::test(tokio::test)]
+    #[test_log::test]
     #[ignore = "external resources"]
-    async fn test_resolver() {
+    fn test_resolver() {
         let resolver = ResolverBuilder::new()
             .with_doh_server("1.1.1.1:443".parse().unwrap(), "cloudflare-dns.com")
             .with_doh_server("8.8.8.8:443".parse().unwrap(), "dns.google")
             .build();
 
-        let result = resolver.lookup_address("www.icanhascheezburger.com").await;
+        let result = resolver.lookup_address("www.icanhascheezburger.com");
         assert!(matches!(result, Ok(_)));
 
         let lookup = result.unwrap();
         assert!(!lookup.addresses.is_empty());
         assert!(!lookup.text_records.is_empty());
 
-        let result = resolver.lookup_address(&random_domain()).await;
+        let result = resolver.lookup_address(&random_domain());
         assert!(matches!(result, Err(ResolverError::NoName(_))));
     }
 }

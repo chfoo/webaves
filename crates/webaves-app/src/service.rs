@@ -15,6 +15,7 @@ pub fn create_service_command<'h>() -> Command<'h> {
     )
 }
 
+#[tokio::main]
 pub async fn run(_global_matches: &ArgMatches, arg_matches: &ArgMatches) -> anyhow::Result<()> {
     match arg_matches.subcommand() {
         Some(("echo-service", _sub_matches)) => run_echo().await,

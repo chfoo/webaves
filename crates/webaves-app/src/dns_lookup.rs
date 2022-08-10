@@ -33,41 +33,31 @@ pub fn create_command<'h>() -> Command<'h> {
         .subcommand(record_command)
 }
 
-pub async fn run(arg_matches: &ArgMatches) -> anyhow::Result<()> {
+pub fn run(arg_matches: &ArgMatches) -> anyhow::Result<()> {
     match arg_matches.subcommand() {
-        Some(("address", sub_matches)) => handle_address_command(arg_matches, sub_matches).await,
-        Some(("record", sub_matches)) => handle_record_command(arg_matches, sub_matches).await,
+        Some(("address", sub_matches)) => handle_address_command(arg_matches, sub_matches),
+        Some(("record", sub_matches)) => handle_record_command(arg_matches, sub_matches),
         _ => unreachable!(),
     }
 }
 
-async fn handle_address_command(
-    matches: &ArgMatches,
-    sub_matches: &ArgMatches,
-) -> anyhow::Result<()> {
+fn handle_address_command(matches: &ArgMatches, sub_matches: &ArgMatches) -> anyhow::Result<()> {
     let builder = crate::dns::config_resolver(Resolver::builder(), matches)?;
     let resolver = builder.build();
-    let response = resolver
-        .lookup_address(sub_matches.get_one::<String>("hostname").unwrap())
-        .await?;
+    let response = resolver.lookup_address(sub_matches.get_one::<String>("hostname").unwrap())?;
 
     println!("{}", serde_json::to_string_pretty(&response)?);
 
     Ok(())
 }
 
-async fn handle_record_command(
-    matches: &ArgMatches,
-    sub_matches: &ArgMatches,
-) -> anyhow::Result<()> {
+fn handle_record_command(matches: &ArgMatches, sub_matches: &ArgMatches) -> anyhow::Result<()> {
     let builder = crate::dns::config_resolver(Resolver::builder(), matches)?;
     let resolver = builder.build();
-    let response = resolver
-        .lookup_record(
-            sub_matches.get_one::<String>("type").unwrap(),
-            sub_matches.get_one::<String>("hostname").unwrap(),
-        )
-        .await?;
+    let response = resolver.lookup_record(
+        sub_matches.get_one::<String>("type").unwrap(),
+        sub_matches.get_one::<String>("hostname").unwrap(),
+    )?;
 
     println!("{}", serde_json::to_string_pretty(&response)?);
 

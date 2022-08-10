@@ -10,6 +10,7 @@ pub fn create_client_command<'h>() -> Command<'h> {
     Command::new("echo").about("Echo service client").hide(true)
 }
 
+#[tokio::main]
 pub async fn run_client(
     global_matches: &ArgMatches,
     _arg_matches: &ArgMatches,
