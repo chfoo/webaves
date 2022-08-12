@@ -118,6 +118,21 @@ pub trait SourceCountRead {
     fn source_read_count(&self) -> u64;
 }
 
+/// Destination of captured data.
+pub type CaptureSink = Box<dyn FnMut(&[u8])>;
+
+/// Object supporting capture of data.
+pub trait Capture {
+    /// Sets a sink to capture all read/written data.
+    fn set_capture_sink(&mut self, sink: Option<CaptureSink>);
+
+    /// Returns a reference to the capture sink.
+    fn capture_sink(&self) -> Option<&CaptureSink>;
+
+    /// Returns a mutable reference to capture sink.
+    fn capture_sink_mut(&mut self) -> &mut Option<CaptureSink>;
+}
+
 /// Buffered reader various features implemented.
 pub struct ComboReader<R: Read> {
     stream: R,
@@ -125,6 +140,7 @@ pub struct ComboReader<R: Read> {
     buf_len_threshold: usize,
     read_count: u64,
     source_read_count: u64,
+    capture_sink: Option<CaptureSink>,
 }
 
 impl<R: Read> ComboReader<R> {
@@ -136,6 +152,7 @@ impl<R: Read> ComboReader<R> {
             buf_len_threshold: 4096,
             read_count: 0,
             source_read_count: 0,
+            capture_sink: None,
         }
     }
 
@@ -176,36 +193,66 @@ impl<R: Read> ComboReader<R> {
         self.buf.copy_within(amount.., 0);
         self.buf.truncate(self.buf.len() - amount);
     }
+
+    fn read_using_non_empty_buffer(&mut self, buf: &mut [u8]) -> Result<usize> {
+        let amount = self.buf.len().min(buf.len());
+
+        (&mut buf[0..amount]).copy_from_slice(&self.buf[0..amount]);
+        self.write_to_capture_sink_buf(&buf[0..amount]);
+        self.shift_buf(amount);
+
+        self.read_count += amount as u64;
+
+        Ok(amount)
+    }
+
+    fn read_skipping_buffer(&mut self, buf: &mut [u8]) -> Result<usize> {
+        debug_assert!(self.buf.is_empty());
+
+        let amount = self.stream.read(buf)?;
+        self.write_to_capture_sink_buf(&buf[0..amount]);
+
+        self.source_read_count += amount as u64;
+        self.read_count += amount as u64;
+
+        Ok(amount)
+    }
+
+    fn read_with_filling_buffer(&mut self, buf: &mut [u8]) -> Result<usize> {
+        debug_assert!(self.buf.is_empty());
+
+        self.fill_buf()?;
+
+        let amount = buf.len().min(self.buf.len());
+
+        (&mut buf[0..amount]).copy_from_slice(&self.buf[0..amount]);
+
+        self.consume(amount);
+
+        Ok(amount)
+    }
+
+    fn write_to_capture_sink_buf(&mut self, buf: &[u8]) {
+        if let Some(sink) = &mut self.capture_sink {
+            sink(buf);
+        }
+    }
+
+    fn write_to_capture_sink_amount(&mut self, amount: usize) {
+        if let Some(sink) = &mut self.capture_sink {
+            sink(&self.buf[0..amount]);
+        }
+    }
 }
 
 impl<R: Read> Read for ComboReader<R> {
     fn read(&mut self, buf: &mut [u8]) -> Result<usize> {
         if !self.buf.is_empty() {
-            let amount = self.buf.len().min(buf.len());
-            (&mut buf[0..amount]).copy_from_slice(&self.buf[0..amount]);
-            self.shift_buf(amount);
-
-            self.read_count += amount as u64;
-
-            Ok(amount)
+            self.read_using_non_empty_buffer(buf)
         } else if buf.len() >= self.buf_len_threshold {
-            debug_assert!(self.buf.is_empty());
-
-            let amount = self.stream.read(buf)?;
-
-            self.source_read_count += amount as u64;
-            self.read_count += amount as u64;
-
-            Ok(amount)
+            self.read_skipping_buffer(buf)
         } else {
-            debug_assert!(self.buf.is_empty());
-
-            self.fill_buf()?;
-            let amount = buf.len().min(self.buf.len());
-            (&mut buf[0..amount]).copy_from_slice(&self.buf[0..amount]);
-            self.consume(amount);
-
-            Ok(amount)
+            self.read_with_filling_buffer(buf)
         }
     }
 }
@@ -219,6 +266,8 @@ impl<R: Read> BufRead for ComboReader<R> {
 
     fn consume(&mut self, amount: usize) {
         let amount = self.buf.len().min(amount);
+
+        self.write_to_capture_sink_amount(amount);
         self.shift_buf(amount);
 
         self.read_count += amount as u64;
@@ -247,12 +296,30 @@ impl<R: Read> SourceCountRead for ComboReader<R> {
     }
 }
 
+impl<R: Read> Capture for ComboReader<R> {
+    fn set_capture_sink(&mut self, sink: Option<CaptureSink>) {
+        self.capture_sink = sink
+    }
+
+    fn capture_sink(&self) -> Option<&CaptureSink> {
+        self.capture_sink.as_ref()
+    }
+
+    fn capture_sink_mut(&mut self) -> &mut Option<CaptureSink> {
+        &mut self.capture_sink
+    }
+}
+
 #[cfg(test)]
 mod tests_sync {
-    use crate::io::{BufReadMoreExt, CountRead, SourceCountRead};
-    use std::io::{BufRead, Cursor, Read};
+    use crate::io::{BufReadMoreExt, Capture, CountRead, SourceCountRead};
+    use std::{
+        cell::RefCell,
+        io::{BufRead, Cursor, Read},
+        rc::Rc,
+    };
 
-    use super::{PeekRead, ComboReader};
+    use super::{ComboReader, PeekRead};
 
     #[test]
     fn test_read_limit_until() {
@@ -290,36 +357,51 @@ mod tests_sync {
         let input = Cursor::new(b"0123456789abcdef");
         let mut reader = ComboReader::new(input);
         let mut output = Vec::new();
+        let capture_output = Rc::new(RefCell::new(Vec::new()));
+        let capture_output2 = capture_output.clone();
+
+        reader.set_capture_sink(Some(Box::new(move |buf| {
+            let mut guard = capture_output2.borrow_mut();
+            guard.extend_from_slice(buf);
+        })));
 
         output.resize(2, 0);
+        capture_output.borrow_mut().clear();
         let amount = reader.read(&mut output).unwrap();
         assert_eq!(amount, 2);
         assert_eq!(output, b"01");
         assert_eq!(reader.buffer(), b"23456789abcdef");
         assert_eq!(reader.read_count(), 2);
         assert_eq!(reader.source_read_count(), 16);
+        assert_eq!(capture_output.borrow().as_slice(), b"01");
 
         output.resize(4, 0);
+        capture_output.borrow_mut().clear();
         let amount = reader.read(&mut output).unwrap();
         assert_eq!(amount, 4);
         assert_eq!(output, b"2345");
         assert_eq!(reader.buffer(), b"6789abcdef");
         assert_eq!(reader.read_count(), 6);
         assert_eq!(reader.source_read_count(), 16);
+        assert_eq!(capture_output.borrow().as_slice(), b"2345");
 
         output.resize(100, 0);
+        capture_output.borrow_mut().clear();
         let amount = reader.read(&mut output).unwrap();
         assert_eq!(amount, 10);
         assert_eq!(&output[0..10], b"6789abcdef");
         assert_eq!(reader.buffer(), b"");
         assert_eq!(reader.read_count(), 16);
         assert_eq!(reader.source_read_count(), 16);
+        assert_eq!(capture_output.borrow().as_slice(), b"6789abcdef");
 
         let amount = reader.read(&mut output).unwrap();
+        capture_output.borrow_mut().clear();
         assert_eq!(amount, 0);
         assert_eq!(reader.buffer(), b"");
         assert_eq!(reader.read_count(), 16);
         assert_eq!(reader.source_read_count(), 16);
+        assert_eq!(capture_output.borrow().as_slice(), b"");
     }
 
     #[test]
